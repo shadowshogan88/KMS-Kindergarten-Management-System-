@@ -9,13 +9,14 @@ const monthLabel = d =>
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect }) => {
+const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect, hidePastBadges = false }) => {
   const eventCountByDate = useMemo(() => {
     const map = new Map();
     for (const ev of items || []) {
       const key = ev?.date;
       if (!key) continue;
-      map.set(key, (map.get(key) || 0) + 1);
+      const inc = typeof ev?.count === 'number' ? ev.count : 1;
+      map.set(key, (map.get(key) || 0) + inc);
     }
     return map;
   }, [items]);
@@ -80,6 +81,7 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect 
             const dateStr = toDateStr(d);
             const isSelected = selectedDate === dateStr;
             const isToday = todayStr === dateStr;
+            const isPast = dateStr < todayStr;
             const count = eventCountByDate.get(dateStr) || 0;
 
             return (
@@ -94,7 +96,7 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect 
                 ].join(' ')}
               >
                 {d.getDate()}
-                {count ? (
+                {count && (!hidePastBadges || !isPast) ? (
                   <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">
                     {count}
                   </span>

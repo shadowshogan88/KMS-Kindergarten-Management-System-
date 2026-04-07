@@ -65,6 +65,8 @@ const PortalSubjectTeachers = lazy(() => import('@/app/(portal)/subject-teachers
 const PortalClassRoutine = lazy(() => import('@/app/(portal)/class-routine'));
 const PortalLiveClass = lazy(() => import('@/app/(portal)/live-class'));
 const PortalStudents = lazy(() => import('@/app/(portal)/students'));
+const PortalAcademicAttendance = lazy(() => import('@/app/(portal)/attendance'));
+const PortalAcademicAttendanceReport = lazy(() => import('@/app/(portal)/attendance-report'));
 
 // layouts
 const SideNavCompact = lazy(() => import('@/app/(admin)/(layouts)/sidenav-compact'));
@@ -219,6 +221,14 @@ export const layoutsRoutes = [{
   path: '/portal/students',
   name: 'PortalStudents',
   element: <PortalStudents />
+}, {
+  path: '/portal/attendance',
+  name: 'PortalAcademicAttendance',
+  element: <PortalAcademicAttendance />
+}, {
+  path: '/portal/attendance-report',
+  name: 'PortalAcademicAttendanceReport',
+  element: <PortalAcademicAttendanceReport />
 }, {
   path: '/portal/classroom',
   name: 'PortalClassroom',

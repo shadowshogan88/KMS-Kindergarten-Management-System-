@@ -149,6 +149,37 @@ class ApiSmokeTests(APITestCase):
         login = self.client.post("/api/v1/auth/token/", {"username": username, "password": password}, format="json")
         self.assertEqual(login.status_code, 200)
 
+    def test_academic_attendance_sheet_and_bulk(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        school_class = self.client.post("/api/v1/academic-classes/", {"name": "AttClass", "sections": ["A"]}, format="json")
+        self.assertEqual(school_class.status_code, 201)
+
+        # Create a student in that class/section (no login needed for attendance).
+        created_student = self.client.post(
+            "/api/v1/students/",
+            {"first_name": "S1", "email": "s1@example.com", "school_class": school_class.data["id"], "section": "A"},
+            format="json",
+        )
+        self.assertEqual(created_student.status_code, 201)
+
+        sheet = self.client.get(f"/api/v1/academic-attendance/sheet/?class={school_class.data['id']}&section=A&date={timezone.localdate()}")
+        self.assertEqual(sheet.status_code, 200)
+        self.assertEqual(sheet.data["school_class"], school_class.data["id"])
+        self.assertEqual(sheet.data["section"], "A")
+        self.assertEqual(len(sheet.data["students"]), 1)
+        self.assertEqual(sheet.data["students"][0]["status"], "")
+
+        bulk = self.client.post(
+            "/api/v1/academic-attendance/bulk/",
+            {"class": school_class.data["id"], "section": "A", "date": str(timezone.localdate()), "items": [{"student": created_student.data["id"], "status": "PRESENT"}]},
+            format="json",
+        )
+        self.assertEqual(bulk.status_code, 200)
+
     def test_department_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
         self.assertEqual(res.status_code, 200)

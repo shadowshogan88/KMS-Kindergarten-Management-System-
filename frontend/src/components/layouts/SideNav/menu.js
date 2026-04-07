@@ -28,6 +28,19 @@ export const menuItemsData = [{
     label: 'Students',
     href: '/portal/students'
   }, {
+    key: 'AcademicAttendance',
+    label: 'Attendance',
+    href: '#',
+    children: [{
+      key: 'AcademicAttendanceEntry',
+      label: 'Attendance',
+      href: '/portal/attendance'
+    }, {
+      key: 'AcademicAttendanceReport',
+      label: 'Attendance Report',
+      href: '/portal/attendance-report'
+    }]
+  }, {
     key: 'Class Routine',
     label: 'Class Routine',
     href: '/portal/class-routine'
