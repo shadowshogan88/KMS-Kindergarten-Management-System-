@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
+from django.core.exceptions import ValidationError
 
+from academics.models import SchoolClass
 
 class ParentProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="parent_profile")
@@ -13,8 +15,21 @@ class ParentProfile(models.Model):
 
 
 class Student(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="student_profile",
+        null=True,
+        blank=True,
+    )
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    phone = models.CharField(max_length=30, blank=True, default="")
+
+    school_class = models.ForeignKey(SchoolClass, on_delete=models.PROTECT, related_name="students", null=True, blank=True)
+    section = models.CharField(max_length=1, blank=True, default="")
+
     date_of_birth = models.DateField(null=True, blank=True)
     photo = models.ImageField(upload_to="students/photos/", blank=True, null=True)
 
@@ -23,6 +38,8 @@ class Student(models.Model):
         on_delete=models.PROTECT,
         related_name="children",
         help_text="Parent user account",
+        null=True,
+        blank=True,
     )
 
     medical_info = models.TextField(blank=True, default="", help_text="Allergies, medications, conditions")
@@ -30,7 +47,32 @@ class Student(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        super().clean()
+        section = (self.section or "").strip().upper()
+        if self.school_class_id:
+            class_sections = self.school_class.sections or []
+            if class_sections:
+                if not section:
+                    raise ValidationError({"section": "Section is required for this class."})
+                if section not in class_sections:
+                    raise ValidationError({"section": f"Section must be one of: {', '.join(class_sections)}."})
+            else:
+                if section:
+                    raise ValidationError({"section": "This class has no sections; leave section empty."})
+        self.section = section
+
+        if self.user_id:
+            role = getattr(self.user, "role", None)
+            if role != "STUDENT":
+                raise ValidationError({"user": "Selected user must have role STUDENT."})
+            self.email = (getattr(self.user, "email", "") or self.email).strip()
+            self.phone = getattr(self.user, "phone", "") or self.phone
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         full = f"{self.first_name} {self.last_name}".strip()
         return full or f"Student({self.id})"
-

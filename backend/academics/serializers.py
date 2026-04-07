@@ -1,3 +1,5 @@
+import datetime
+
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
@@ -165,6 +167,15 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"email": "Email is required when creating a teacher login."})
         return attrs
 
+    def _generate_teacher_username(self, UserModel):
+        yy = str(datetime.date.today().year)[-2:]
+        for _ in range(80):
+            digits = get_random_string(4, allowed_chars="0123456789")
+            username = f"tid{yy}{digits}"
+            if not UserModel.objects.filter(username=username).exists():
+                return username
+        raise serializers.ValidationError({"username": "Unable to generate a unique teacher username. Try again."})
+
     def create(self, validated_data):
         create_user = bool(validated_data.pop("create_user", False))
         desired_username = (validated_data.pop("username", "") or "").strip()
@@ -180,16 +191,12 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
         if not User:
             raise serializers.ValidationError({"create_user": "Request context is required."})
 
-        base_username = desired_username or f"t{teacher.teacher_code}".lower()
-        base_username = "".join(ch for ch in base_username if ch.isalnum() or ch in {"_", "."}).strip(".") or f"t{teacher.teacher_code}".lower()
-
-        username = base_username
-        for _ in range(50):
-            if not User.objects.filter(username=username).exists():
-                break
-            username = f"{base_username}{get_random_string(2, allowed_chars='0123456789')}"
+        if desired_username:
+            username = desired_username
+            if User.objects.filter(username=username).exists():
+                raise serializers.ValidationError({"username": "This username is already taken."})
         else:
-            raise serializers.ValidationError({"username": "Unable to generate a unique username. Try again."})
+            username = self._generate_teacher_username(User)
 
         password = desired_password or get_random_string(10)
         email = desired_email

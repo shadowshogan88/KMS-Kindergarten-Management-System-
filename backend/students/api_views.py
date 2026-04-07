@@ -24,6 +24,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         if getattr(user, "role", None) == "PARENT":
             return qs.filter(parent=user)
+        if getattr(user, "role", None) == "STUDENT":
+            return qs.filter(user=user)
         return qs
 
 
@@ -49,4 +51,3 @@ class ParentProfileViewSet(viewsets.ModelViewSet):
     def mine(self, request):
         obj, _ = ParentProfile.objects.get_or_create(user=request.user)
         return Response(ParentProfileSerializer(obj).data)
-

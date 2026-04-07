@@ -11,6 +11,6 @@ class ParentProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ("first_name", "last_name", "parent", "date_of_birth", "created_at")
-    search_fields = ("first_name", "last_name", "parent__username", "parent__email")
-
+    list_display = ("first_name", "last_name", "school_class", "section", "email", "phone", "parent", "user", "date_of_birth", "created_at")
+    search_fields = ("first_name", "last_name", "email", "phone", "parent__username", "parent__email", "user__username", "user__email")
+    autocomplete_fields = ("parent", "user", "school_class")

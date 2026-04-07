@@ -17,6 +17,9 @@ class IsTeacher(IsRole):
     allowed_roles = {"TEACHER"}
 
 
+class IsStudent(IsRole):
+    allowed_roles = {"STUDENT"}
+
+
 class IsParent(IsRole):
     allowed_roles = {"PARENT"}
-

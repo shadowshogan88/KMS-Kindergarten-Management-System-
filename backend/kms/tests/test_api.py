@@ -110,6 +110,45 @@ class ApiSmokeTests(APITestCase):
         )
         self.assertEqual(res.status_code, 403)
 
+    def test_student_can_auto_create_student_user(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        school_class = self.client.post(
+            "/api/v1/academic-classes/",
+            {"name": "Std-1", "sections": ["A"]},
+            format="json",
+        )
+        self.assertEqual(school_class.status_code, 201)
+
+        created = self.client.post(
+            "/api/v1/students/",
+            {
+                "first_name": "Rafi",
+                "last_name": "Hasan",
+                "email": "rafi.student@example.com",
+                "phone": "01900000000",
+                "school_class": school_class.data["id"],
+                "section": "A",
+                "create_user": True,
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertTrue(created.data.get("user"))
+        username = created.data.get("generated_username") or ""
+        password = created.data.get("generated_password") or ""
+        self.assertTrue(username.startswith(f"sid{str(timezone.localdate().year)[-2:]}"))
+        self.assertEqual(len(username), 10)  # sid + YY + 5 digits
+        self.assertTrue(username[-5:].isdigit())
+        self.assertTrue(password)
+
+        login = self.client.post("/api/v1/auth/token/", {"username": username, "password": password}, format="json")
+        self.assertEqual(login.status_code, 200)
+
     def test_department_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
         self.assertEqual(res.status_code, 200)

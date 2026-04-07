@@ -24,6 +24,10 @@ export const menuItemsData = [{
     label: 'Subject Teachers',
     href: '/portal/subject-teachers'
   }, {
+    key: 'Students',
+    label: 'Students',
+    href: '/portal/students'
+  }, {
     key: 'Class Routine',
     label: 'Class Routine',
     href: '/portal/class-routine'

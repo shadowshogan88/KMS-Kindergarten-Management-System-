@@ -5,11 +5,13 @@ from django.db import models
 class User(AbstractUser):
     ROLE_ADMIN = "ADMIN"
     ROLE_TEACHER = "TEACHER"
+    ROLE_STUDENT = "STUDENT"
     ROLE_PARENT = "PARENT"
 
     ROLE_CHOICES = [
         (ROLE_ADMIN, "Admin"),
         (ROLE_TEACHER, "Teacher"),
+        (ROLE_STUDENT, "Student"),
         (ROLE_PARENT, "Parent"),
     ]
 
@@ -18,4 +20,3 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return f"{self.username} ({self.role})"
-
