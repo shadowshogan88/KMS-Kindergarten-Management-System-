@@ -310,10 +310,35 @@ class ApiSmokeTests(APITestCase):
         self.assertEqual(created.status_code, 201)
         self.assertIn("teacher_code", created.data)
         self.assertEqual(len(created.data["teacher_code"]), 4)
+        self.assertFalse(created.data.get("generated_username"))
+        self.assertFalse(created.data.get("generated_password"))
 
         listing = self.client.get("/api/v1/subject-teachers/")
         self.assertEqual(listing.status_code, 200)
         self.assertGreaterEqual(len(listing.data["results"]), 1)
+
+    def test_subject_teacher_can_auto_create_teacher_user(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        created = self.client.post(
+            "/api/v1/subject-teachers/",
+            {"name": "Ms. Asha", "phone": "01800000011", "create_user": True},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertTrue(created.data.get("user"))
+        self.assertTrue(created.data.get("generated_username"))
+        self.assertTrue(created.data.get("generated_password"))
+
+        username = created.data["generated_username"]
+        password = created.data["generated_password"]
+
+        login = self.client.post("/api/v1/auth/token/", {"username": username, "password": password}, format="json")
+        self.assertEqual(login.status_code, 200)
 
     def test_academic_routine_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
