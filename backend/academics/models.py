@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils.crypto import get_random_string
@@ -175,6 +176,13 @@ class Designation(models.Model):
 
 
 class SubjectTeacher(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="subject_teacher_profile",
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=30, blank=True, default="")
     teacher_code = models.CharField(max_length=4, unique=True, blank=True, default="")
@@ -186,6 +194,10 @@ class SubjectTeacher(models.Model):
 
     def clean(self):
         super().clean()
+        if self.user_id:
+            role = getattr(self.user, "role", None)
+            if role != "TEACHER":
+                raise ValidationError({"user": "Selected user must have role TEACHER."})
         self.teacher_code = (self.teacher_code or "").strip().upper()
         if self.teacher_code and len(self.teacher_code) != 4:
             raise ValidationError({"teacher_code": "Teacher code must be exactly 4 characters."})
@@ -199,6 +211,11 @@ class SubjectTeacher(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
+        if self.user_id:
+            # Keep teacher display data consistent with the Teacher user account.
+            full_name = (getattr(self.user, "get_full_name", lambda: "")() or "").strip()
+            self.name = full_name or (getattr(self.user, "username", "") or self.name)
+            self.phone = getattr(self.user, "phone", "") or self.phone
         if not self.teacher_code:
             self.teacher_code = self._generate_unique_code()
         return super().save(*args, **kwargs)

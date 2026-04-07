@@ -42,5 +42,6 @@ class DesignationAdmin(admin.ModelAdmin):
 
 @admin.register(SubjectTeacher)
 class SubjectTeacherAdmin(admin.ModelAdmin):
-    list_display = ("teacher_code", "name", "phone", "updated_at")
-    search_fields = ("teacher_code", "name", "phone")
+    list_display = ("teacher_code", "name", "phone", "user", "updated_at")
+    search_fields = ("teacher_code", "name", "phone", "user__username", "user__first_name", "user__last_name")
+    autocomplete_fields = ("user",)

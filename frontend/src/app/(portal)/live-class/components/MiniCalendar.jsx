@@ -80,7 +80,6 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect 
             const dateStr = toDateStr(d);
             const isSelected = selectedDate === dateStr;
             const isToday = todayStr === dateStr;
-            const isPast = dateStr < todayStr;
             const count = eventCountByDate.get(dateStr) || 0;
 
             return (
@@ -91,12 +90,11 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect 
                 className={[
                   'h-9 rounded-md border text-sm flex items-center justify-center relative',
                   isSelected ? 'border-primary bg-primary/10 text-primary' : 'border-default-200 hover:bg-default-150',
-                  isPast && !isSelected ? 'text-default-400' : '',
                   isToday && !isSelected ? 'ring-1 ring-primary/30' : '',
                 ].join(' ')}
               >
                 {d.getDate()}
-                {count && !isPast ? (
+                {count ? (
                   <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">
                     {count}
                   </span>
@@ -111,3 +109,4 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect 
 };
 
 export default MiniCalendar;
+

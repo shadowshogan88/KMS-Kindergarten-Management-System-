@@ -110,6 +110,15 @@ class DesignationSerializer(serializers.ModelSerializer):
 
 
 class SubjectTeacherSerializer(serializers.ModelSerializer):
+    user_label = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = SubjectTeacher
-        fields = ("id", "name", "phone", "teacher_code", "created_at", "updated_at")
+        fields = ("id", "user", "user_label", "name", "phone", "teacher_code", "created_at", "updated_at")
+
+    def get_user_label(self, obj):
+        user = getattr(obj, "user", None)
+        if not user:
+            return ""
+        full_name = (user.get_full_name() or "").strip()
+        return full_name or user.username

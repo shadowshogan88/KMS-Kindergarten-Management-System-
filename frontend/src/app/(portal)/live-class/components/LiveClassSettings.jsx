@@ -26,7 +26,6 @@ const toLocalDateStr = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2
 const fmtTime = t => (t ? String(t).slice(0, 5) : '');
 
 const LiveClassSettings = () => {
-  const todayStr = toLocalDateStr(new Date());
   const [flash, setFlash] = useState('');
   const [status, setStatus] = useState({ connected: false, calendar_id: '' });
   const [statusError, setStatusError] = useState('');
@@ -212,11 +211,10 @@ const LiveClassSettings = () => {
   }, [items, activeDay]);
 
   const selectedDateRows = useMemo(() => {
-    if (selectedDate && selectedDate < todayStr) return [];
     return calendarItems
       .filter(e => e.date === selectedDate)
       .sort((a, b) => String(a?.start_time || '').localeCompare(String(b?.start_time || '')));
-  }, [calendarItems, selectedDate, todayStr]);
+  }, [calendarItems, selectedDate]);
 
   const connect = async () => {
     setFlash('');
@@ -531,9 +529,6 @@ const LiveClassSettings = () => {
               </div>
               <div className="p-4 flex flex-col gap-3">
                 {!schoolClass ? <div className="text-sm text-default-500">Select a class to view calendar.</div> : null}
-                {schoolClass && selectedDate && selectedDate < todayStr ? (
-                  <div className="text-sm text-default-500">Past date selected — date-wise live class list is hidden.</div>
-                ) : null}
                 {schoolClass && selectedDateRows.length === 0 ? (
                   <div className="text-sm text-default-500">No classes on this date.</div>
                 ) : null}
