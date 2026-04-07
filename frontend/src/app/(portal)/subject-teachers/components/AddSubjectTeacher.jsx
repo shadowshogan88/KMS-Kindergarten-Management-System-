@@ -11,6 +11,7 @@ const emptyValues = {
   create_user: false,
   username: '',
   password: '',
+  email: '',
 };
 
 const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) => {
@@ -34,6 +35,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       create_user: false,
       username: '',
       password: '',
+      email: '',
     });
   }, [subjectTeacher]);
 
@@ -50,6 +52,11 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       return;
     }
     if (!isEdit && values.create_user) {
+      const email = values.email.trim();
+      if (!email) {
+        setError('Email is required for teacher login.');
+        return;
+      }
       const username = values.username.trim();
       if (username && username.length < 3) {
         setError('Username must be at least 3 characters (or leave empty for auto-generate).');
@@ -80,6 +87,8 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
           payload.create_user = true;
           const username = values.username.trim();
           const password = values.password.trim();
+          const email = values.email.trim();
+          payload.email = email;
           if (username) payload.username = username;
           if (password) payload.password = password;
         }
@@ -240,6 +249,21 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
 
               {!isEdit && values.create_user ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label htmlFor="teacher-email" className="inline-block mb-2 text-base font-medium">
+                      Email <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      id="teacher-email"
+                      className="form-input"
+                      placeholder="e.g. teacher@gmail.com"
+                      value={values.email}
+                      onChange={e => setValues(v => ({ ...v, email: e.target.value }))}
+                      disabled={isSubmitting || Boolean(createdCreds)}
+                      autoComplete="off"
+                    />
+                  </div>
                   <div>
                     <label htmlFor="teacher-username" className="inline-block mb-2 text-base font-medium">
                       Username (Optional)

@@ -112,9 +112,11 @@ class DesignationSerializer(serializers.ModelSerializer):
 
 class SubjectTeacherSerializer(serializers.ModelSerializer):
     user_label = serializers.SerializerMethodField(read_only=True)
+    user_email = serializers.SerializerMethodField(read_only=True)
     create_user = serializers.BooleanField(write_only=True, required=False, default=False)
     username = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, default="", style={"input_type": "password"})
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True, default="")
     generated_username = serializers.CharField(read_only=True, default="")
     generated_password = serializers.CharField(read_only=True, default="")
 
@@ -124,12 +126,14 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "user_label",
+            "user_email",
             "name",
             "phone",
             "teacher_code",
             "create_user",
             "username",
             "password",
+            "email",
             "generated_username",
             "generated_password",
             "created_at",
@@ -143,17 +147,30 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
         full_name = (user.get_full_name() or "").strip()
         return full_name or user.username
 
+    def get_user_email(self, obj):
+        user = getattr(obj, "user", None)
+        return getattr(user, "email", "") or ""
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         create_user = bool(attrs.get("create_user"))
         if create_user and attrs.get("user"):
             raise serializers.ValidationError({"user": "Do not pass user when create_user=true."})
+
+        user = attrs.get("user")
+        if user and not (getattr(user, "email", "") or "").strip():
+            raise serializers.ValidationError({"user": "Selected Teacher user must have an email address."})
+
+        email = (attrs.get("email", "") or "").strip()
+        if create_user and not email:
+            raise serializers.ValidationError({"email": "Email is required when creating a teacher login."})
         return attrs
 
     def create(self, validated_data):
         create_user = bool(validated_data.pop("create_user", False))
         desired_username = (validated_data.pop("username", "") or "").strip()
         desired_password = (validated_data.pop("password", "") or "").strip()
+        desired_email = (validated_data.pop("email", "") or "").strip()
 
         teacher = super().create(validated_data)
 
@@ -176,11 +193,17 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"username": "Unable to generate a unique username. Try again."})
 
         password = desired_password or get_random_string(10)
+        email = desired_email
+        if not email:
+            raise serializers.ValidationError({"email": "Email is required when creating a teacher login."})
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({"email": "A user with this email already exists."})
 
         # Create teacher user account.
         user = User.objects.create_user(
             username=username,
             password=password,
+            email=email,
             role="TEACHER",
             phone=teacher.phone,
         )

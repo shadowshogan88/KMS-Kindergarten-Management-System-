@@ -326,7 +326,7 @@ class ApiSmokeTests(APITestCase):
 
         created = self.client.post(
             "/api/v1/subject-teachers/",
-            {"name": "Ms. Asha", "phone": "01800000011", "create_user": True},
+            {"name": "Ms. Asha", "phone": "01800000011", "create_user": True, "email": "asha@example.com"},
             format="json",
         )
         self.assertEqual(created.status_code, 201)
@@ -339,6 +339,20 @@ class ApiSmokeTests(APITestCase):
 
         login = self.client.post("/api/v1/auth/token/", {"username": username, "password": password}, format="json")
         self.assertEqual(login.status_code, 200)
+
+    def test_subject_teacher_create_user_requires_email(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        created = self.client.post(
+            "/api/v1/subject-teachers/",
+            {"name": "NoEmail Teacher", "create_user": True},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 400)
 
     def test_academic_routine_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
