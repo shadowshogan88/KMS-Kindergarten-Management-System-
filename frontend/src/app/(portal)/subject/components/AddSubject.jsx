@@ -16,7 +16,7 @@ const emptyValues = {
   subject_type: TYPE_THEORY,
 };
 
-const AddSubject = ({ subject, onCreated, onUpdated, onRefresh }) => {
+const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, onRefresh }) => {
   const isEdit = useMemo(() => Boolean(subject?.id), [subject?.id]);
   const [values, setValues] = useState(emptyValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +33,7 @@ const AddSubject = ({ subject, onCreated, onUpdated, onRefresh }) => {
   useEffect(() => {
     setError('');
     if (!subject) {
-      setValues(emptyValues);
+      setValues({ ...emptyValues, classroom: defaultClassroomKey || '' });
       setTeacherSearch('');
       return;
     }
@@ -45,7 +45,7 @@ const AddSubject = ({ subject, onCreated, onUpdated, onRefresh }) => {
       subject_type: subject.subject_type || TYPE_THEORY,
     });
     setTeacherSearch(subject.subject_teacher_label || '');
-  }, [subject]);
+  }, [subject, defaultClassroomKey]);
 
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());

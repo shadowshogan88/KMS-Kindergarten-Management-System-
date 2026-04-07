@@ -24,24 +24,22 @@ export const menuItemsData = [{
     label: 'Subject Teachers',
     href: '/portal/subject-teachers'
   }, {
+    key: 'Class Routine',
+    label: 'Class Routine',
+    href: '/portal/class-routine'
+  }, {
     key: 'Classrooms',
     label: 'Classrooms',
     href: '/portal/classroom'
   }]
 }, {
-  key: 'Landing Page',
-  label: 'Landing Page',
+  key: 'Live Class',
+  label: 'Live Class',
   icon: LuPictureInPicture2,
   children: [{
-    key: 'One Page',
-    label: 'One Page',
-    href: '/onepage-landing',
-    target: '_blank'
-  }, {
-    key: 'Product',
-    label: 'Product',
-    href: '/product-landing',
-    target: '_blank'
+    key: 'Live Class Settings',
+    label: 'Live Class Settings',
+    href: '/portal/live-class'
   }]
 }, {
   key: 'Apps',

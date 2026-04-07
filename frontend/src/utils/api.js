@@ -45,9 +45,17 @@ export const apiJson = async (path, { method = 'GET', body, headers } = {}, _ret
   if (!_retried && shouldTryRefresh(res, data)) {
     const refresh = authStorage.getRefresh();
     if (refresh) {
-      const next = await refreshAccess(refresh);
-      authStorage.setAccess(next.access);
-      return apiJson(path, { method, body, headers }, true);
+      try {
+        const next = await refreshAccess(refresh);
+        authStorage.setAccess(next.access);
+        return apiJson(path, { method, body, headers }, true);
+      } catch {
+        authStorage.clear();
+        throw new Error('Session expired. Please sign in again.');
+      }
+    } else {
+      authStorage.clear();
+      throw new Error('Session expired. Please sign in again.');
     }
   }
 

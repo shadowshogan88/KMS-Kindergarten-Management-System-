@@ -149,6 +149,44 @@ class ApiSmokeTests(APITestCase):
         self.assertEqual(listing.status_code, 200)
         self.assertGreaterEqual(len(listing.data["results"]), 1)
 
+    def test_academic_class_delete_blocked_when_subjects_exist(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        school_class = self.client.post(
+            "/api/v1/academic-classes/",
+            {"name": "Class 9", "sections": ["A"]},
+            format="json",
+        )
+        self.assertEqual(school_class.status_code, 201)
+
+        teacher = self.client.post(
+            "/api/v1/subject-teachers/",
+            {"name": "Mr. Karim", "phone": "01900000000"},
+            format="json",
+        )
+        self.assertEqual(teacher.status_code, 201)
+
+        subject = self.client.post(
+            "/api/v1/subjects/",
+            {
+                "classroom": f"{school_class.data['id']}:A",
+                "subject_teacher": teacher.data["id"],
+                "name": "Science",
+                "code": "SCI-101",
+                "subject_type": "THEORY",
+            },
+            format="json",
+        )
+        self.assertEqual(subject.status_code, 201)
+
+        deleted = self.client.delete(f"/api/v1/academic-classes/{school_class.data['id']}/")
+        self.assertEqual(deleted.status_code, 400)
+        self.assertIn("detail", deleted.data)
+
     def test_section_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
         self.assertEqual(res.status_code, 200)
@@ -207,6 +245,41 @@ class ApiSmokeTests(APITestCase):
         self.assertEqual(listing.status_code, 200)
         self.assertGreaterEqual(len(listing.data["results"]), 1)
 
+    def test_subject_list_can_filter_by_class_and_section(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        t = self.client.post("/api/v1/subject-teachers/", {"name": "Ms. Rupa"}, format="json")
+        self.assertEqual(t.status_code, 201)
+
+        c1 = self.client.post("/api/v1/academic-classes/", {"name": "FilterClass1", "sections": ["A"]}, format="json")
+        self.assertEqual(c1.status_code, 201)
+        c2 = self.client.post("/api/v1/academic-classes/", {"name": "FilterClass2", "sections": ["A"]}, format="json")
+        self.assertEqual(c2.status_code, 201)
+
+        s1 = self.client.post(
+            "/api/v1/subjects/",
+            {"classroom": f"{c1.data['id']}:A", "subject_teacher": t.data["id"], "name": "English X", "code": "ENG-X", "subject_type": "THEORY"},
+            format="json",
+        )
+        self.assertEqual(s1.status_code, 201)
+
+        s2 = self.client.post(
+            "/api/v1/subjects/",
+            {"classroom": f"{c2.data['id']}:A", "subject_teacher": t.data["id"], "name": "English Y", "code": "ENG-Y", "subject_type": "THEORY"},
+            format="json",
+        )
+        self.assertEqual(s2.status_code, 201)
+
+        filtered = self.client.get(f"/api/v1/subjects/?class={c1.data['id']}&section=A")
+        self.assertEqual(filtered.status_code, 200)
+        codes = [row["code"] for row in filtered.data["results"]]
+        self.assertIn("ENG-X", codes)
+        self.assertNotIn("ENG-Y", codes)
+
     def test_designation_crud_admin_only_write(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
         self.assertEqual(res.status_code, 200)
@@ -241,6 +314,89 @@ class ApiSmokeTests(APITestCase):
         listing = self.client.get("/api/v1/subject-teachers/")
         self.assertEqual(listing.status_code, 200)
         self.assertGreaterEqual(len(listing.data["results"]), 1)
+
+    def test_academic_routine_crud_admin_only_write(self):
+        res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        access = res.data["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        school_class = self.client.post(
+            "/api/v1/academic-classes/",
+            {"name": "Class 2", "sections": ["A", "B"]},
+            format="json",
+        )
+        self.assertEqual(school_class.status_code, 201)
+
+        teacher = self.client.post(
+            "/api/v1/subject-teachers/",
+            {"name": "Ms. Nila", "phone": "01800000000"},
+            format="json",
+        )
+        self.assertEqual(teacher.status_code, 201)
+
+        subject = self.client.post(
+            "/api/v1/subjects/",
+            {
+                "classroom": f"{school_class.data['id']}:A",
+                "subject_teacher": teacher.data["id"],
+                "name": "Math",
+                "code": "MTH-101",
+                "subject_type": "THEORY",
+            },
+            format="json",
+        )
+        self.assertEqual(subject.status_code, 201)
+
+        created = self.client.post(
+            "/api/v1/academic-routines/",
+            {
+                "school_class": school_class.data["id"],
+                "section": "A",
+                "subject": subject.data["id"],
+                "day_of_week": 1,
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "room": "101",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["section"], "A")
+        self.assertEqual(created.data["subject"], subject.data["id"])
+        # subject_teacher auto-selected from subject unless overridden
+        self.assertTrue(created.data.get("subject_teacher"))
+
+        listing = self.client.get(
+            f"/api/v1/academic-routines/?class={school_class.data['id']}&section=A",
+        )
+        self.assertEqual(listing.status_code, 200)
+        self.assertGreaterEqual(len(listing.data["results"]), 1)
+
+        break_created = self.client.post(
+            "/api/v1/academic-routines/",
+            {
+                "school_class": school_class.data["id"],
+                "section": "A",
+                "routine_type": "BREAK",
+                "title": "Tiffin",
+                "day_of_week": 1,
+                "start_time": "10:00",
+                "end_time": "10:15",
+            },
+            format="json",
+        )
+        self.assertEqual(break_created.status_code, 201)
+        self.assertEqual(break_created.data["routine_type"], "BREAK")
+
+        updated_meet = self.client.post(
+            f"/api/v1/academic-routines/{created.data['id']}/update-meet/",
+            {"day_of_week": 2, "start_time": "08:30", "end_time": "09:15"},
+            format="json",
+        )
+        self.assertEqual(updated_meet.status_code, 200)
+        self.assertEqual(updated_meet.data["day_of_week"], 2)
 
     def test_classroom_create_admin(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
