@@ -200,6 +200,27 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
                 />
               </div>
 
+              {!isEdit ? (
+                <div className="lg:col-span-12">
+                  <label htmlFor="teacher-email" className="inline-block mb-2 text-base font-medium">
+                    Email {values.create_user ? <span className="text-danger">*</span> : null}
+                  </label>
+                  <input
+                    type="email"
+                    id="teacher-email"
+                    className="form-input"
+                    placeholder={values.create_user ? 'e.g. teacher@gmail.com' : 'Enable login to set email'}
+                    value={values.email}
+                    onChange={e => setValues(v => ({ ...v, email: e.target.value }))}
+                    disabled={isSubmitting || Boolean(createdCreds) || !values.create_user}
+                    autoComplete="off"
+                  />
+                  <div className="mt-1 text-xs text-default-500">
+                    {values.create_user ? 'This email will be used for the teacher login account.' : 'Optional: turn on “Create teacher login” to set email.'}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="lg:col-span-12">
                 <label htmlFor="teacher-phone" className="inline-block mb-2 text-base font-medium">
                   Phone Number
@@ -249,21 +270,6 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
 
               {!isEdit && values.create_user ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="sm:col-span-2">
-                    <label htmlFor="teacher-email" className="inline-block mb-2 text-base font-medium">
-                      Email <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      id="teacher-email"
-                      className="form-input"
-                      placeholder="e.g. teacher@gmail.com"
-                      value={values.email}
-                      onChange={e => setValues(v => ({ ...v, email: e.target.value }))}
-                      disabled={isSubmitting || Boolean(createdCreds)}
-                      autoComplete="off"
-                    />
-                  </div>
                   <div>
                     <label htmlFor="teacher-username" className="inline-block mb-2 text-base font-medium">
                       Username (Optional)
