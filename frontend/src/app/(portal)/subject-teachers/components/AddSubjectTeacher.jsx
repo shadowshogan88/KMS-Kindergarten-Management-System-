@@ -30,12 +30,12 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
     }
     setValues({
       name: subjectTeacher.name || '',
+      email: subjectTeacher.email || subjectTeacher.user_email || '',
       phone: subjectTeacher.phone || '',
       teacher_code: subjectTeacher.teacher_code || '',
       create_user: false,
       username: '',
       password: '',
-      email: '',
     });
   }, [subjectTeacher]);
 
@@ -73,11 +73,13 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
     try {
       const payload = {
         name: values.name.trim(),
+        email: values.email.trim(),
         phone: values.phone.trim(),
         teacher_code: code,
       };
 
       if (!payload.teacher_code) delete payload.teacher_code;
+      if (!payload.email) delete payload.email;
       if (!payload.phone) delete payload.phone;
 
       if (isEdit) {
@@ -200,26 +202,24 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
                 />
               </div>
 
-              {!isEdit ? (
-                <div className="lg:col-span-12">
-                  <label htmlFor="teacher-email" className="inline-block mb-2 text-base font-medium">
-                    Email {values.create_user ? <span className="text-danger">*</span> : null}
-                  </label>
-                  <input
-                    type="email"
-                    id="teacher-email"
-                    className="form-input"
-                    placeholder={values.create_user ? 'e.g. teacher@gmail.com' : 'Enable login to set email'}
-                    value={values.email}
-                    onChange={e => setValues(v => ({ ...v, email: e.target.value }))}
-                    disabled={isSubmitting || Boolean(createdCreds) || !values.create_user}
-                    autoComplete="off"
-                  />
-                  <div className="mt-1 text-xs text-default-500">
-                    {values.create_user ? 'This email will be used for the teacher login account.' : 'Optional: turn on “Create teacher login” to set email.'}
-                  </div>
+              <div className="lg:col-span-12">
+                <label htmlFor="teacher-email" className="inline-block mb-2 text-base font-medium">
+                  Email {(!isEdit && values.create_user) ? <span className="text-danger">*</span> : null}
+                </label>
+                <input
+                  type="email"
+                  id="teacher-email"
+                  className="form-input"
+                  placeholder="e.g. teacher@gmail.com"
+                  value={values.email}
+                  onChange={e => setValues(v => ({ ...v, email: e.target.value }))}
+                  disabled={isSubmitting || Boolean(createdCreds) || (isEdit && Boolean(subjectTeacher?.user))}
+                  autoComplete="off"
+                />
+                <div className="mt-1 text-xs text-default-500">
+                  {isEdit && subjectTeacher?.user ? 'Email comes from the linked Teacher user account.' : values.create_user ? 'Required for teacher login account.' : 'Optional contact email.'}
                 </div>
-              ) : null}
+              </div>
 
               <div className="lg:col-span-12">
                 <label htmlFor="teacher-phone" className="inline-block mb-2 text-base font-medium">
@@ -264,7 +264,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
                     />
                     <span className="text-sm font-medium text-default-800">Create teacher username & password (login)</span>
                   </label>
-                  <div className="mt-1 text-xs text-default-500">Optional: you can set username/password, or leave empty for auto-generate.</div>
+                  <div className="mt-1 text-xs text-default-500">Optional: you can set username/password, or leave empty for auto-generate. Email is required if enabled.</div>
                 </div>
               ) : null}
 

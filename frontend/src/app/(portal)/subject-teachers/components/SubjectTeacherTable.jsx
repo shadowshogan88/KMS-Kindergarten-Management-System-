@@ -134,6 +134,7 @@ const SubjectTeacherTable = () => {
                     <th className="px-3.5 py-3 text-start">#</th>
                     <th className="px-3.5 py-3 text-start">Code</th>
                     <th className="px-3.5 py-3 text-start">Teacher Name</th>
+                    <th className="px-3.5 py-3 text-start">Email</th>
                     <th className="px-3.5 py-3 text-start">Phone</th>
                     <th className="px-3.5 py-3 text-start">Action</th>
                   </tr>
@@ -161,6 +162,7 @@ const SubjectTeacherTable = () => {
                       <td className="px-3.5 py-3 text-sm">{row.id}</td>
                       <td className="px-3.5 py-3 text-sm">{row.teacher_code || '-'}</td>
                       <td className="px-3.5 py-3 text-sm">{row.name}</td>
+                      <td className="px-3.5 py-3 text-sm">{row.user_email || row.email || '-'}</td>
                       <td className="px-3.5 py-3 text-sm">{row.phone || '-'}</td>
                       <td className="px-3.5 py-3">
                         <div className="flex items-center gap-2">

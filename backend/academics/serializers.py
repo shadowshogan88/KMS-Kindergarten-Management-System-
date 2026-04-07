@@ -116,7 +116,6 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
     create_user = serializers.BooleanField(write_only=True, required=False, default=False)
     username = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, default="", style={"input_type": "password"})
-    email = serializers.EmailField(write_only=True, required=False, allow_blank=True, default="")
     generated_username = serializers.CharField(read_only=True, default="")
     generated_password = serializers.CharField(read_only=True, default="")
 
@@ -128,12 +127,12 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
             "user_label",
             "user_email",
             "name",
+            "email",
             "phone",
             "teacher_code",
             "create_user",
             "username",
             "password",
-            "email",
             "generated_username",
             "generated_password",
             "created_at",
@@ -170,7 +169,7 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
         create_user = bool(validated_data.pop("create_user", False))
         desired_username = (validated_data.pop("username", "") or "").strip()
         desired_password = (validated_data.pop("password", "") or "").strip()
-        desired_email = (validated_data.pop("email", "") or "").strip()
+        desired_email = (validated_data.get("email", "") or "").strip()
 
         teacher = super().create(validated_data)
 

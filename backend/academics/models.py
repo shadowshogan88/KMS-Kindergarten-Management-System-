@@ -184,6 +184,7 @@ class SubjectTeacher(models.Model):
         blank=True,
     )
     name = models.CharField(max_length=120)
+    email = models.EmailField(blank=True, default="")
     phone = models.CharField(max_length=30, blank=True, default="")
     teacher_code = models.CharField(max_length=4, unique=True, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -216,6 +217,7 @@ class SubjectTeacher(models.Model):
             full_name = (getattr(self.user, "get_full_name", lambda: "")() or "").strip()
             self.name = full_name or (getattr(self.user, "username", "") or self.name)
             self.phone = getattr(self.user, "phone", "") or self.phone
+            self.email = (getattr(self.user, "email", "") or self.email).strip()
         if not self.teacher_code:
             self.teacher_code = self._generate_unique_code()
         return super().save(*args, **kwargs)
