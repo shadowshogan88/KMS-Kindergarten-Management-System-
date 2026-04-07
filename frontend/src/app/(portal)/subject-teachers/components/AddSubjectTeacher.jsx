@@ -8,6 +8,9 @@ const emptyValues = {
   name: '',
   phone: '',
   teacher_code: '',
+  create_user: false,
+  username: '',
+  password: '',
 };
 
 const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) => {
@@ -15,9 +18,11 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
   const [values, setValues] = useState(emptyValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [createdCreds, setCreatedCreds] = useState(null);
 
   useEffect(() => {
     setError('');
+    setCreatedCreds(null);
     if (!subjectTeacher) {
       setValues(emptyValues);
       return;
@@ -26,11 +31,15 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       name: subjectTeacher.name || '',
       phone: subjectTeacher.phone || '',
       teacher_code: subjectTeacher.teacher_code || '',
+      create_user: false,
+      username: '',
+      password: '',
     });
   }, [subjectTeacher]);
 
   const submit = async () => {
     setError('');
+    setCreatedCreds(null);
     if (!values.name.trim()) {
       setError('Teacher name is required.');
       return;
@@ -39,6 +48,18 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
     if (code && code.length !== 4) {
       setError('Teacher code must be 4 characters (or leave empty for auto-generate).');
       return;
+    }
+    if (!isEdit && values.create_user) {
+      const username = values.username.trim();
+      if (username && username.length < 3) {
+        setError('Username must be at least 3 characters (or leave empty for auto-generate).');
+        return;
+      }
+      const password = values.password.trim();
+      if (password && password.length < 6) {
+        setError('Password must be at least 6 characters (or leave empty for auto-generate).');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -52,8 +73,25 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       if (!payload.teacher_code) delete payload.teacher_code;
       if (!payload.phone) delete payload.phone;
 
-      if (isEdit) await onUpdated?.(subjectTeacher, payload);
-      else await onCreated?.(payload);
+      if (isEdit) {
+        await onUpdated?.(subjectTeacher, payload);
+      } else {
+        if (values.create_user) {
+          payload.create_user = true;
+          const username = values.username.trim();
+          const password = values.password.trim();
+          if (username) payload.username = username;
+          if (password) payload.password = password;
+        }
+        const created = await onCreated?.(payload);
+        const genUser = created?.generated_username || '';
+        const genPass = created?.generated_password || '';
+        if (genUser && genPass) {
+          setCreatedCreds({ username: genUser, password: genPass });
+          await onRefresh?.();
+          return; // keep modal open so user can copy credentials
+        }
+      }
 
       await onRefresh?.();
       closeTeacherOverlay();
@@ -62,6 +100,12 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const copyText = async text => {
+    try {
+      await navigator?.clipboard?.writeText?.(text);
+    } catch {}
   };
 
   return (
@@ -100,7 +144,38 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
               </div>
             ) : null}
 
+            {createdCreds ? (
+              <div className="mb-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm text-default-800">
+                <div className="font-semibold text-success">Teacher login created</div>
+                <div className="mt-2 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      Username: <span className="font-semibold">{createdCreds.username}</span>
+                    </div>
+                    <button type="button" className="text-primary underline text-sm" onClick={() => copyText(createdCreds.username)}>
+                      Copy
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      Password: <span className="font-semibold">{createdCreds.password}</span>
+                    </div>
+                    <button type="button" className="text-primary underline text-sm" onClick={() => copyText(createdCreds.password)}>
+                      Copy
+                    </button>
+                  </div>
+                  <div className="text-xs text-default-600">Please save these credentials now. For security, they will not be shown again.</div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-y-4">
+              {isEdit && subjectTeacher?.user_label ? (
+                <div className="rounded-md border border-default-200 bg-default-50 px-4 py-3 text-sm text-default-700">
+                  Linked user: <span className="font-semibold text-default-800">{subjectTeacher.user_label}</span>
+                </div>
+              ) : null}
+
               <div className="lg:col-span-12">
                 <label htmlFor="teacher-name" className="inline-block mb-2 text-base font-medium">
                   Teacher Name
@@ -146,6 +221,57 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
                 />
                 <div className="mt-2 text-xs text-default-500">If you leave it empty, a unique 4-character code will be generated.</div>
               </div>
+
+              {!isEdit ? (
+                <div className="lg:col-span-12">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      className="form-checkbox rounded"
+                      type="checkbox"
+                      checked={Boolean(values.create_user)}
+                      onChange={e => setValues(v => ({ ...v, create_user: e.target.checked }))}
+                      disabled={isSubmitting || Boolean(createdCreds)}
+                    />
+                    <span className="text-sm font-medium text-default-800">Create teacher username & password (login)</span>
+                  </label>
+                  <div className="mt-1 text-xs text-default-500">Optional: you can set username/password, or leave empty for auto-generate.</div>
+                </div>
+              ) : null}
+
+              {!isEdit && values.create_user ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="teacher-username" className="inline-block mb-2 text-base font-medium">
+                      Username (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      id="teacher-username"
+                      className="form-input"
+                      placeholder="e.g. teacher01"
+                      value={values.username}
+                      onChange={e => setValues(v => ({ ...v, username: e.target.value }))}
+                      disabled={isSubmitting || Boolean(createdCreds)}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="teacher-password" className="inline-block mb-2 text-base font-medium">
+                      Password (Optional)
+                    </label>
+                    <input
+                      type="password"
+                      id="teacher-password"
+                      className="form-input"
+                      placeholder="leave empty for auto"
+                      value={values.password}
+                      onChange={e => setValues(v => ({ ...v, password: e.target.value }))}
+                      disabled={isSubmitting || Boolean(createdCreds)}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -157,7 +283,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
               aria-label="Close"
               disabled={isSubmitting}
             >
-              Cancel
+              {createdCreds ? 'Close' : 'Cancel'}
             </button>
 
             <button type="button" className="text-white btn bg-primary" onClick={submit} disabled={isSubmitting}>
@@ -171,4 +297,3 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
 };
 
 export default AddSubjectTeacher;
-

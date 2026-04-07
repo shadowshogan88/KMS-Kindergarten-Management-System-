@@ -65,6 +65,7 @@ const SubjectTeacherTable = () => {
     setItems(prev => [created, ...prev].slice(0, 10));
     setCount(prev => prev + 1);
     setFlash('Subject teacher added successfully.');
+    return created;
   };
   const onUpdate = async (row, payload) => {
     const updated = await apiJson(`/subject-teachers/${row.id}/`, { method: 'PATCH', body: payload });
@@ -227,4 +228,3 @@ const SubjectTeacherTable = () => {
 };
 
 export default SubjectTeacherTable;
-
