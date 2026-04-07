@@ -15,10 +15,21 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect,
     for (const ev of items || []) {
       const key = ev?.date;
       if (!key) continue;
+      if (ev?.is_holiday) continue;
       const inc = typeof ev?.count === 'number' ? ev.count : 1;
       map.set(key, (map.get(key) || 0) + inc);
     }
     return map;
+  }, [items]);
+
+  const holidayByDate = useMemo(() => {
+    const set = new Set();
+    for (const ev of items || []) {
+      const key = ev?.date;
+      if (!key) continue;
+      if (ev?.is_holiday) set.add(key);
+    }
+    return set;
   }, [items]);
 
   const cells = useMemo(() => {
@@ -83,6 +94,7 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect,
             const isToday = todayStr === dateStr;
             const isPast = dateStr < todayStr;
             const count = eventCountByDate.get(dateStr) || 0;
+            const isHoliday = holidayByDate.has(dateStr);
 
             return (
               <button
@@ -91,7 +103,11 @@ const MiniCalendar = ({ month, items, selectedDate, onMonthChange, onDateSelect,
                 onClick={() => onDateSelect?.(dateStr)}
                 className={[
                   'h-9 rounded-md border text-sm flex items-center justify-center relative',
-                  isSelected ? 'border-primary bg-primary/10 text-primary' : 'border-default-200 hover:bg-default-150',
+                  isHoliday
+                    ? 'border-warning bg-warning/10 text-warning hover:bg-warning/15'
+                    : isSelected
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-default-200 hover:bg-default-150',
                   isToday && !isSelected ? 'ring-1 ring-primary/30' : '',
                 ].join(' ')}
               >

@@ -107,7 +107,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       await onRefresh?.();
       closeTeacherOverlay();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save subject teacher.');
+      setError(e instanceof Error ? e.message : 'Failed to save teacher.');
     } finally {
       setIsSubmitting(false);
     }
@@ -131,7 +131,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
         <div className="w-full flex flex-col card border border-default-200 shadow-2xs rounded-xl pointer-events-auto">
           <div className="card-header">
             <h3 id="subject-teacher-edit-modal-label" className="font-bold text-default-800 text-base">
-              {isEdit ? 'Edit Subject Teacher' : 'Add Subject Teacher'}
+              {isEdit ? 'Edit Teacher' : 'Add Teacher'}
             </h3>
             <div>
               <button
@@ -317,7 +317,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
             </button>
 
             <button type="button" className="text-white btn bg-primary" onClick={submit} disabled={isSubmitting}>
-              {isEdit ? 'Save Changes' : 'Add Subject Teacher'}
+              {isEdit ? 'Save Changes' : 'Add Teacher'}
             </button>
           </div>
         </div>

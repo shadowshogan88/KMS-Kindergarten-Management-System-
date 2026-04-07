@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import AcademicClassRoutine, AcademicClassRoutineOverride, ClassRoutine
+from .models import AcademicClassRoutine, AcademicClassRoutineOverride, ClassRoutine, Holiday, WeeklyHoliday
 
 
 class ClassRoutineSerializer(serializers.ModelSerializer):
@@ -177,3 +177,48 @@ class AcademicClassRoutineOverrideSerializer(serializers.ModelSerializer):
         if start and end and start >= end:
             raise serializers.ValidationError({"end_time": "end_time must be after start_time."})
         return attrs
+
+
+class HolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = (
+            "id",
+            "date",
+            "title",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("created_at", "updated_at")
+
+
+class WeeklyHolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeeklyHoliday
+        fields = (
+            "id",
+            "days",
+            "title",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("created_at", "updated_at")
+
+    def validate_days(self, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("days must be a list.")
+        normalized = []
+        for d in value:
+            try:
+                d = int(d)
+            except Exception:
+                continue
+            if 0 <= d <= 6 and d not in normalized:
+                normalized.append(d)
+        return normalized

@@ -3,7 +3,7 @@ import datetime
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
-from .models import Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
+from .models import ClassTeacher, Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -227,3 +227,86 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
         data["generated_username"] = getattr(self, "_generated_username", "") or ""
         data["generated_password"] = getattr(self, "_generated_password", "") or ""
         return data
+
+
+class ClassTeacherSerializer(serializers.ModelSerializer):
+    school_class = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all(), required=False)
+    section = serializers.CharField(required=False, allow_blank=True, default="")
+    classroom = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    classroom_key = serializers.CharField(read_only=True)
+    classroom_label = serializers.CharField(read_only=True)
+    teacher_label = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ClassTeacher
+        validators = []
+        fields = (
+            "id",
+            "school_class",
+            "section",
+            "classroom",
+            "classroom_key",
+            "classroom_label",
+            "teacher",
+            "teacher_label",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        classroom = (attrs.pop("classroom", "") or "").strip()
+        if classroom:
+            if ":" in classroom:
+                class_id, section = classroom.split(":", 1)
+            else:
+                class_id, section = classroom, ""
+
+            try:
+                class_id = int(class_id)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"classroom": "Invalid class selection."})
+
+            try:
+                school_class = SchoolClass.objects.get(id=class_id)
+            except SchoolClass.DoesNotExist:
+                raise serializers.ValidationError({"classroom": "Selected class does not exist."})
+
+            attrs["school_class"] = school_class
+            attrs["section"] = (section or "").strip().upper()
+
+        is_creating = self.instance is None
+        school_class = attrs.get("school_class", getattr(self.instance, "school_class", None))
+        if is_creating and not school_class:
+            raise serializers.ValidationError({"classroom": "Class is required."})
+
+        teacher = attrs.get("teacher", getattr(self.instance, "teacher", None))
+        if is_creating and not teacher:
+            raise serializers.ValidationError({"teacher": "Teacher is required."})
+
+        section = attrs.get("section", getattr(self.instance, "section", "")) or ""
+        section = section.strip().upper()
+
+        if school_class:
+            class_sections = list(school_class.sections or [])
+            if class_sections:
+                if not section:
+                    raise serializers.ValidationError({"section": "Section is required for this class."})
+                if section not in class_sections:
+                    raise serializers.ValidationError({"section": f"Section must be one of: {', '.join(class_sections)}."})
+            else:
+                if section:
+                    raise serializers.ValidationError({"section": "This class has no sections; leave section empty."})
+
+        if "section" in attrs:
+            attrs["section"] = section
+
+        if school_class:
+            qs = ClassTeacher.objects.filter(school_class=school_class, section=section)
+            if self.instance:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError({"classroom": "A class teacher is already assigned for this class."})
+
+        return attrs

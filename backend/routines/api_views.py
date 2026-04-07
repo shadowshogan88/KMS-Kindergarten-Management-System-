@@ -16,7 +16,11 @@ from .serializers import (
     AcademicClassRoutineOverrideSerializer,
     AcademicClassRoutineSerializer,
     ClassRoutineSerializer,
+    HolidaySerializer,
+    WeeklyHolidaySerializer,
 )
+from .holiday_utils import get_holiday_for_date
+from .models import Holiday, WeeklyHoliday
 from integrations.google import create_calendar_event_with_meet, delete_calendar_event, patch_calendar_event
 
 
@@ -375,6 +379,30 @@ class LiveCalendarView(views.APIView):
         cur = start
         one_day = datetime.timedelta(days=1)
         while cur <= end:
+            hol = get_holiday_for_date(cur)
+            if hol:
+                out.append(
+                    {
+                        "date": str(cur),
+                        "routine_id": f"holiday-{hol.get('kind','DATE')}",
+                        "override_id": None,
+                        "is_override": False,
+                        "day_of_week": None,
+                        "start_time": None,
+                        "end_time": None,
+                        "subject_label": hol.get("title") or "Holiday",
+                        "subject_teacher_label": "",
+                        "routine_type": "HOLIDAY",
+                        "subject_type": "",
+                        "live_enabled": False,
+                        "meet_link": "",
+                        "is_holiday": True,
+                        "holiday": hol,
+                    }
+                )
+                cur = cur + one_day
+                continue
+
             for rt in routines:
                 # Match routine day_of_week (0 Sat..6 Fri) to python weekday (Mon=0..Sun=6)
                 rt_py = (rt.day_of_week - 2) % 7
@@ -399,8 +427,79 @@ class LiveCalendarView(views.APIView):
                         "subject_type": getattr(rt.subject, "subject_type", "") if rt.subject_id else "",
                         "live_enabled": rt.live_enabled,
                         "meet_link": meet_link or "",
+                        "is_holiday": False,
+                        "holiday": None,
                     }
                 )
             cur = cur + one_day
 
         return Response(out)
+
+
+class HolidayCalendarView(views.APIView):
+    """
+    Month/range view for holidays (date + weekly) independent of class selection.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+
+        start = parse_date(start_raw) if isinstance(start_raw, str) else None
+        end = parse_date(end_raw) if isinstance(end_raw, str) else None
+        if not start or not end:
+            return Response({"detail": "start and end are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        out = []
+        cur = start
+        one_day = datetime.timedelta(days=1)
+        while cur <= end:
+            hol = get_holiday_for_date(cur)
+            if hol:
+                out.append(
+                    {
+                        "date": str(cur),
+                        "is_holiday": True,
+                        "holiday": hol,
+                    }
+                )
+            cur = cur + one_day
+
+        return Response(out)
+
+
+class HolidayViewSet(viewsets.ModelViewSet):
+    queryset = Holiday.objects.all()
+    serializer_class = HolidaySerializer
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return super().get_permissions()
+
+
+class WeeklyHolidayViewSet(viewsets.ModelViewSet):
+    queryset = WeeklyHoliday.objects.filter(singleton_key=1)
+    serializer_class = WeeklyHolidaySerializer
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy", "current"}:
+            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return super().get_permissions()
+
+    @action(detail=False, methods=["get", "post"], url_path="current")
+    def current(self, request):
+        obj, _ = WeeklyHoliday.objects.get_or_create(singleton_key=1, defaults={"days": [], "title": "Weekly Holiday"})
+        if request.method == "GET":
+            return Response(WeeklyHolidaySerializer(obj).data)
+
+        serializer = WeeklyHolidaySerializer(obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

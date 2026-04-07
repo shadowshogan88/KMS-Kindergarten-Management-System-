@@ -224,3 +224,72 @@ class SubjectTeacher(models.Model):
 
     def __str__(self) -> str:
         return f"{self.teacher_code} - {self.name}"
+
+
+class ClassTeacher(models.Model):
+    school_class = models.ForeignKey(
+        SchoolClass,
+        on_delete=models.PROTECT,
+        related_name="class_teachers",
+    )
+    section = models.CharField(max_length=1, blank=True, default="")
+    teacher = models.ForeignKey(
+        SubjectTeacher,
+        on_delete=models.PROTECT,
+        related_name="class_assignments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["school_class_id", "section", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school_class", "section"],
+                name="uniq_class_teacher_class_section",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        section = (self.section or "").strip().upper()
+        class_sections = list(self.school_class.sections or []) if self.school_class_id else []
+
+        if class_sections:
+            if not section:
+                raise ValidationError({"section": "Section is required for this class."})
+            if section not in class_sections:
+                raise ValidationError({"section": f"Section must be one of: {', '.join(class_sections)}."})
+        else:
+            if section:
+                raise ValidationError({"section": "This class has no sections; leave section empty."})
+
+        self.section = section
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def classroom_key(self) -> str:
+        if not self.school_class_id:
+            return ""
+        return f"{self.school_class_id}:{self.section or ''}"
+
+    @property
+    def classroom_label(self) -> str:
+        if not self.school_class_id:
+            return ""
+        if self.section:
+            return f"{self.school_class.name} ({self.section})"
+        return self.school_class.name
+
+    @property
+    def teacher_label(self) -> str:
+        if not self.teacher_id:
+            return ""
+        return f"{self.teacher.teacher_code} - {self.teacher.name}"
+
+    def __str__(self) -> str:
+        return f"{self.classroom_label} -> {self.teacher_label}"

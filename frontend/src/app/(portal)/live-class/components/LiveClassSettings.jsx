@@ -47,6 +47,7 @@ const LiveClassSettings = () => {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [calendarItems, setCalendarItems] = useState([]);
+  const [holidayCalendarItems, setHolidayCalendarItems] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => {
     return toLocalDateStr(new Date());
   });
@@ -184,8 +185,32 @@ const LiveClassSettings = () => {
     }
   };
 
+  const loadHolidayCalendar = async monthDate => {
+    const canUseApi = Boolean(authStorage.getAccess());
+    if (!canUseApi) return;
+
+    try {
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0);
+      const startStr = toLocalDateStr(start);
+      const endStr = toLocalDateStr(end);
+
+      const qs = new URLSearchParams();
+      qs.set('start', startStr);
+      qs.set('end', endStr);
+
+      const data = await apiJson(`/holiday-calendar/?${qs.toString()}`);
+      setHolidayCalendarItems(Array.isArray(data) ? data : []);
+    } catch {
+      setHolidayCalendarItems([]);
+    }
+  };
+
   useEffect(() => {
     loadCalendar(calendarMonth);
+    loadHolidayCalendar(calendarMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolClass, section, calendarMonth]);
 
@@ -512,7 +537,7 @@ const LiveClassSettings = () => {
           <div className="lg:col-span-1">
             <MiniCalendar
               month={calendarMonth}
-              items={calendarItems}
+              items={[...(Array.isArray(calendarItems) ? calendarItems : []), ...(Array.isArray(holidayCalendarItems) ? holidayCalendarItems : [])]}
               selectedDate={selectedDate}
               onMonthChange={setCalendarMonth}
               onDateSelect={d => {
@@ -535,6 +560,20 @@ const LiveClassSettings = () => {
                 ) : null}
 
                 {selectedDateRows.map(ev => (
+                  ev?.is_holiday ? (
+                    <div key={`${ev.date}-${ev.routine_id}`} className="rounded-md border border-warning/20 bg-warning/10 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-warning">Break for Holiday</div>
+                          <div className="mt-1 text-sm text-default-800">{ev?.holiday?.title || ev.subject_label || 'Holiday'}</div>
+                          {ev?.holiday?.description ? (
+                            <div className="mt-1 text-xs text-default-600">{ev.holiday.description}</div>
+                          ) : null}
+                        </div>
+                        <div className="text-xs text-default-600">{ev?.holiday?.kind === 'WEEKLY' ? 'Weekly' : 'Holiday'}</div>
+                      </div>
+                    </div>
+                  ) : (
                   <div key={`${ev.date}-${ev.routine_id}`} className="rounded-md border border-default-200 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -570,6 +609,7 @@ const LiveClassSettings = () => {
                       </div>
                     </div>
                   </div>
+                  )
                 ))}
               </div>
             </div>

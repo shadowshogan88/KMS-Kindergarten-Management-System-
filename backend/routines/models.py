@@ -190,3 +190,67 @@ class AcademicClassRoutineOverride(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
         return super().save(*args, **kwargs)
+
+
+class Holiday(models.Model):
+    date = models.DateField(unique=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def clean(self):
+        super().clean()
+        self.title = (self.title or "").strip()
+        if not self.title:
+            raise ValidationError({"title": "Title is required."})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.date} - {self.title}"
+
+
+class WeeklyHoliday(models.Model):
+    """
+    A single global weekly holiday configuration (e.g. Friday).
+    Store day indices as the same convention used by routines:
+    0=Sat ... 6=Fri.
+    """
+
+    singleton_key = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
+    days = models.JSONField(default=list, blank=True)
+    title = models.CharField(max_length=200, blank=True, default="Weekly Holiday")
+    description = models.TextField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def clean(self):
+        super().clean()
+        normalized = []
+        for d in self.days or []:
+            try:
+                d = int(d)
+            except Exception:
+                continue
+            if 0 <= d <= 6 and d not in normalized:
+                normalized.append(d)
+        self.days = normalized
+        self.title = (self.title or "").strip() or "Weekly Holiday"
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"Weekly Holiday ({', '.join(str(d) for d in (self.days or []))})"

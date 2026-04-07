@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { LuSearch } from 'react-icons/lu';
+import { LuCheck, LuClock, LuSearch, LuX } from 'react-icons/lu';
 
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 
 const pad2 = n => String(n).padStart(2, '0');
 const toMonthStr = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+
+const StatusIcon = ({ status }) => {
+  if (status === 'PRESENT') return <LuCheck className="size-4 text-success" />;
+  if (status === 'ABSENT') return <LuX className="size-4 text-danger" />;
+  if (status === 'LATE') return <LuClock className="size-4 text-warning" />;
+  return <span className="text-default-500 text-sm">-</span>;
+};
 
 const AcademicAttendanceReportPage = () => {
   const [error, setError] = useState('');
@@ -68,7 +75,7 @@ const AcademicAttendanceReportPage = () => {
       qs.set('class', String(selectedParts.school_class));
       if (selectedParts.section) qs.set('section', String(selectedParts.section));
       qs.set('month', month);
-      const res = await apiJson(`/academic-attendance/summary/?${qs.toString()}`);
+      const res = await apiJson(`/academic-attendance/month-grid/?${qs.toString()}`);
       setData(res || null);
     } catch (e) {
       setData(null);
@@ -89,6 +96,8 @@ const AcademicAttendanceReportPage = () => {
     if (!q) return list;
     return list.filter(s => String(s?.name || '').toLowerCase().includes(q));
   }, [data?.students, search]);
+
+  const days = useMemo(() => (Array.isArray(data?.days) ? data.days : []), [data?.days]);
 
   return (
     <div className="card">
@@ -160,17 +169,21 @@ const AcademicAttendanceReportPage = () => {
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-default-200">
                 <thead className="bg-default-100 font-normal whitespace-nowrap">
-                  <tr className="text-sm text-default-800">
-                    <th className="px-3.5 py-3 font-medium text-start">Student</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Present</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Absent</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Late</th>
+                  <tr className="text-sm  text-default-800">
+                    <th scope="col" className="px-3.5 py-3 font-medium text-start">
+                      Student Name
+                    </th>
+                    {days.map(d => (
+                      <th key={d} scope="col" className="px-3.5 py-3 font-medium text-center">
+                        {d}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-default-200">
                   {!selectedParts.school_class ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
                         Select a class to view report.
                       </td>
                     </tr>
@@ -178,7 +191,7 @@ const AcademicAttendanceReportPage = () => {
 
                   {selectedParts.school_class && isLoading ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
                         Loading...
                       </td>
                     </tr>
@@ -186,7 +199,7 @@ const AcademicAttendanceReportPage = () => {
 
                   {selectedParts.school_class && !isLoading && data && rows.length === 0 ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
                         No students found.
                       </td>
                     </tr>
@@ -195,9 +208,11 @@ const AcademicAttendanceReportPage = () => {
                   {rows.map(r => (
                     <tr key={r.id} className="text-default-800 font-normal whitespace-nowrap">
                       <td className="px-3.5 py-3 text-sm">{r.name}</td>
-                      <td className="px-3.5 py-3 text-sm">{r.present}</td>
-                      <td className="px-3.5 py-3 text-sm">{r.absent}</td>
-                      <td className="px-3.5 py-3 text-sm">{r.late}</td>
+                      {days.map(d => (
+                        <td key={d} className="px-3.5 py-3 text-sm text-center">
+                          <StatusIcon status={r?.days?.[d] || ''} />
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
@@ -217,4 +232,3 @@ const AcademicAttendanceReportPage = () => {
 };
 
 export default AcademicAttendanceReportPage;
-

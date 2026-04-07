@@ -62,6 +62,10 @@ const PortalSubject = lazy(() => import('@/app/(portal)/subject'));
 const PortalClassroom = lazy(() => import('@/app/(portal)/classroom'));
 const PortalDesignation = lazy(() => import('@/app/(portal)/designation'));
 const PortalSubjectTeachers = lazy(() => import('@/app/(portal)/subject-teachers'));
+const PortalTeachers = lazy(() => import('@/app/(portal)/teachers'));
+const PortalClassTeachers = lazy(() => import('@/app/(portal)/class-teachers'));
+const PortalHolidays = lazy(() => import('@/app/(portal)/holidays'));
+const PortalWeeklyHolidays = lazy(() => import('@/app/(portal)/weekly-holidays'));
 const PortalClassRoutine = lazy(() => import('@/app/(portal)/class-routine'));
 const PortalLiveClass = lazy(() => import('@/app/(portal)/live-class'));
 const PortalStudents = lazy(() => import('@/app/(portal)/students'));
@@ -210,6 +214,22 @@ export const layoutsRoutes = [{
   name: 'PortalSubjectTeachers',
   element: <PortalSubjectTeachers />
 }, {
+  path: '/portal/teachers',
+  name: 'PortalTeachers',
+  element: <PortalTeachers />
+}, {
+  path: '/portal/class-teachers',
+  name: 'PortalClassTeachers',
+  element: <PortalClassTeachers />
+}, {
+  path: '/portal/holidays',
+  name: 'PortalHolidays',
+  element: <PortalHolidays />
+}, {
+  path: '/portal/weekly-holidays',
+  name: 'PortalWeeklyHolidays',
+  element: <PortalWeeklyHolidays />
+}, {
   path: '/portal/class-routine',
   name: 'PortalClassRoutine',
   element: <PortalClassRoutine />
@@ -256,7 +276,19 @@ export const layoutsRoutes = [{
 }, {
   path: '/subject-teachers',
   name: 'SubjectTeachersRedirect',
-  element: <Navigate to="/portal/subject-teachers" replace />
+  element: <Navigate to="/portal/teachers" replace />
+}, {
+  path: '/teachers',
+  name: 'TeachersRedirect',
+  element: <Navigate to="/portal/teachers" replace />
+}, {
+  path: '/class-teachers',
+  name: 'ClassTeachersRedirect',
+  element: <Navigate to="/portal/class-teachers" replace />
+}, {
+  path: '/weekly-holidays',
+  name: 'WeeklyHolidaysRedirect',
+  element: <Navigate to="/portal/weekly-holidays" replace />
 }, {
   path: '/class-routine',
   name: 'ClassRoutineRedirect',

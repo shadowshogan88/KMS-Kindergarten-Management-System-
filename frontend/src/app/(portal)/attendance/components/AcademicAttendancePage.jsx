@@ -32,6 +32,7 @@ const AcademicAttendancePage = () => {
   });
 
   const [calendarItems, setCalendarItems] = useState([]);
+  const [holidayCalendarItems, setHolidayCalendarItems] = useState([]);
   const [sheet, setSheet] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -117,6 +118,21 @@ const AcademicAttendancePage = () => {
     }
   };
 
+  const loadHolidayCalendar = async m => {
+    const canUseApi = Boolean(authStorage.getAccess());
+    if (!canUseApi) return;
+    try {
+      const { start, end } = monthStartEnd(m);
+      const qs = new URLSearchParams();
+      qs.set('start', start);
+      qs.set('end', end);
+      const data = await apiJson(`/holiday-calendar/?${qs.toString()}`);
+      setHolidayCalendarItems(Array.isArray(data) ? data : []);
+    } catch {
+      setHolidayCalendarItems([]);
+    }
+  };
+
   useEffect(() => {
     loadSheet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,6 +140,7 @@ const AcademicAttendancePage = () => {
 
   useEffect(() => {
     loadCalendar(month);
+    loadHolidayCalendar(month);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedParts.school_class, selectedParts.section, month]);
 
@@ -134,8 +151,16 @@ const AcademicAttendancePage = () => {
     return list.filter(s => String(s?.name || '').toLowerCase().includes(q));
   }, [sheet?.students, search]);
 
+  const holidayInfo = sheet?.holiday || null;
+  const isHoliday = Boolean(sheet?.is_holiday);
+  const attendanceDisabled = Boolean(sheet?.attendance_disabled);
+
   const bulkUpdate = async ({ nextStatusForAll } = {}) => {
     if (!sheet?.school_class || !sheet?.date) return;
+    if (attendanceDisabled) {
+      setFlash(`Break for Holiday: ${holidayInfo?.title || 'Holiday'}`);
+      return;
+    }
     const items = (Array.isArray(sheet?.students) ? sheet.students : []).map(s => ({
       student: s.id,
       status: nextStatusForAll,
@@ -217,7 +242,6 @@ const AcademicAttendancePage = () => {
 
         {flash ? <div className="px-5 pt-4 text-sm text-default-800">{flash}</div> : null}
         {error ? <div className="px-5 pt-4 text-sm text-danger">{error}</div> : null}
-
         <div className="p-5 grid grid-cols-1 lg:grid-cols-4 gap-5">
           <div className="lg:col-span-1 card border border-default-200 shadow-2xs rounded-xl">
             <div className="card-body">
@@ -266,7 +290,7 @@ const AcademicAttendancePage = () => {
           <div className="lg:col-span-1">
             <MiniCalendar
               month={month}
-              items={calendarItems}
+              items={[...(Array.isArray(calendarItems) ? calendarItems : []), ...(Array.isArray(holidayCalendarItems) ? holidayCalendarItems : [])]}
               selectedDate={date}
               onMonthChange={setMonth}
               onDateSelect={setDate}
@@ -296,7 +320,7 @@ const AcademicAttendancePage = () => {
                   <button
                     type="button"
                     className="border btn btn-sm border-dashed border-danger text-danger bg-transparent ease-linear hover:bg-red-50"
-                    disabled={!sheet || isLoading}
+                    disabled={!sheet || isLoading || attendanceDisabled}
                     onClick={async () => {
                       setFlash('');
                       try {
@@ -315,7 +339,7 @@ const AcademicAttendancePage = () => {
                   <button
                     type="button"
                     className="btn btn-sm bg-primary text-white"
-                    disabled={!sheet || isLoading}
+                    disabled={!sheet || isLoading || attendanceDisabled}
                     onClick={async () => {
                       setFlash('');
                       try {
@@ -363,7 +387,7 @@ const AcademicAttendancePage = () => {
                           </tr>
                         ) : null}
 
-                        {selectedParts.school_class && !isLoading && sheet && students.length === 0 ? (
+                        {selectedParts.school_class && !isLoading && sheet && !attendanceDisabled && students.length === 0 ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
                             <td className="px-3.5 py-4 text-sm" colSpan={3}>
                               No students found.
@@ -371,63 +395,76 @@ const AcademicAttendancePage = () => {
                           </tr>
                         ) : null}
 
-                        {students.map(s => (
-                          <tr key={s.id} className="text-default-800 font-normal whitespace-nowrap">
-                            <td className="px-3.5 py-3 text-sm">{s.name}</td>
-                            <td className="px-3.5 py-3 text-sm">
-                              {s.status ? (
-                                <span
-                                  className={[
-                                    'py-0.5 px-2.5 border rounded',
-                                    s.status === 'PRESENT'
-                                      ? 'border-success/20 text-success bg-success/10'
-                                      : s.status === 'ABSENT'
-                                        ? 'border-danger/20 text-danger bg-danger/10'
-                                        : 'border-warning/20 text-warning bg-warning/10',
-                                  ].join(' ')}
-                                >
-                                  {s.status}
-                                </span>
-                              ) : (
-                                <span className="text-default-500">-</span>
-                              )}
-                            </td>
-                            <td className="px-3.5 py-3">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="btn size-8 bg-success/10 hover:bg-success hover:text-white text-success"
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      await setStudentStatus(s.id, 'PRESENT');
-                                      await loadSheet();
-                                      await loadCalendar(month);
-                                    } catch (e) {
-                                      setFlash(e instanceof Error ? e.message : 'Failed.');
-                                    }
-                                  }}
-                                >
-                                  <LuCheck className="size-4" />
-                                </button>
-                                <button
-                                  className="btn size-8 bg-danger/10 hover:bg-danger hover:text-white text-danger"
-                                  type="button"
-                                  onClick={async () => {
-                                    try {
-                                      await setStudentStatus(s.id, 'ABSENT');
-                                      await loadSheet();
-                                      await loadCalendar(month);
-                                    } catch (e) {
-                                      setFlash(e instanceof Error ? e.message : 'Failed.');
-                                    }
-                                  }}
-                                >
-                                  <LuX className="size-4" />
-                                </button>
+                        {selectedParts.school_class && !isLoading && sheet && attendanceDisabled ? (
+                          <tr className="text-default-800 font-normal whitespace-nowrap">
+                            <td className="px-3.5 py-4 text-sm" colSpan={3}>
+                              <div className="rounded-md border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
+                                <div className="font-semibold">Break for Holiday: {holidayInfo?.title || 'Holiday'}</div>
+                                {holidayInfo?.description ? <div className="mt-1 text-xs text-default-700">{holidayInfo.description}</div> : null}
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        ) : null}
+
+                        {!attendanceDisabled
+                          ? students.map(s => (
+                              <tr key={s.id} className="text-default-800 font-normal whitespace-nowrap">
+                                <td className="px-3.5 py-3 text-sm">{s.name}</td>
+                                <td className="px-3.5 py-3 text-sm">
+                                  {s.status ? (
+                                    <span
+                                      className={[
+                                        'py-0.5 px-2.5 border rounded',
+                                        s.status === 'PRESENT'
+                                          ? 'border-success/20 text-success bg-success/10'
+                                          : s.status === 'ABSENT'
+                                            ? 'border-danger/20 text-danger bg-danger/10'
+                                            : 'border-warning/20 text-warning bg-warning/10',
+                                      ].join(' ')}
+                                    >
+                                      {s.status}
+                                    </span>
+                                  ) : (
+                                    <span className="text-default-500">-</span>
+                                  )}
+                                </td>
+                                <td className="px-3.5 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      className="btn size-8 bg-success/10 hover:bg-success hover:text-white text-success"
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await setStudentStatus(s.id, 'PRESENT');
+                                          await loadSheet();
+                                          await loadCalendar(month);
+                                        } catch (e) {
+                                          setFlash(e instanceof Error ? e.message : 'Failed.');
+                                        }
+                                      }}
+                                    >
+                                      <LuCheck className="size-4" />
+                                    </button>
+                                    <button
+                                      className="btn size-8 bg-danger/10 hover:bg-danger hover:text-white text-danger"
+                                      type="button"
+                                      onClick={async () => {
+                                        try {
+                                          await setStudentStatus(s.id, 'ABSENT');
+                                          await loadSheet();
+                                          await loadCalendar(month);
+                                        } catch (e) {
+                                          setFlash(e instanceof Error ? e.message : 'Failed.');
+                                        }
+                                      }}
+                                    >
+                                      <LuX className="size-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          : null}
                       </tbody>
                     </table>
                   </div>
@@ -436,7 +473,7 @@ const AcademicAttendancePage = () => {
 
               <div className="card-footer">
                 <p className="text-default-500 text-sm">
-                  Showing <b>{sheet ? students.length : 0}</b> Results
+                  Showing <b>{sheet && !attendanceDisabled ? students.length : 0}</b> Results
                 </p>
               </div>
             </div>
@@ -448,4 +485,3 @@ const AcademicAttendancePage = () => {
 };
 
 export default AcademicAttendancePage;
-

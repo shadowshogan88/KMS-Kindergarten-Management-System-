@@ -20,9 +20,21 @@ export const menuItemsData = [{
     label: 'Subjects',
     href: '/portal/subject'
   }, {
-    key: 'Subject Teachers',
-    label: 'Subject Teachers',
-    href: '/portal/subject-teachers'
+    key: 'Teachers',
+    label: 'Teachers',
+    href: '/portal/teachers'
+  }, {
+    key: 'Class Teachers',
+    label: 'Class Teachers',
+    href: '/portal/class-teachers'
+  }, {
+    key: 'Holidays',
+    label: 'Holidays',
+    href: '/portal/holidays'
+  }, {
+    key: 'Weekly Holidays',
+    label: 'Weekly Holidays',
+    href: '/portal/weekly-holidays'
   }, {
     key: 'Students',
     label: 'Students',

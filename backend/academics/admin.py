@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
+from .models import ClassTeacher, Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
 
 
 @admin.register(Department)
@@ -45,3 +45,10 @@ class SubjectTeacherAdmin(admin.ModelAdmin):
     list_display = ("teacher_code", "name", "phone", "user", "updated_at")
     search_fields = ("teacher_code", "name", "phone", "user__username", "user__first_name", "user__last_name")
     autocomplete_fields = ("user",)
+
+
+@admin.register(ClassTeacher)
+class ClassTeacherAdmin(admin.ModelAdmin):
+    list_display = ("school_class", "section", "teacher", "updated_at")
+    search_fields = ("school_class__name", "section", "teacher__teacher_code", "teacher__name")
+    autocomplete_fields = ("teacher",)

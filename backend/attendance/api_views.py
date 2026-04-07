@@ -1,7 +1,5 @@
 import datetime
 
-import datetime
-
 from django.db.models import Count, Q
 from django.utils.dateparse import parse_date
 from rest_framework import permissions, status, viewsets
@@ -18,6 +16,7 @@ from students.models import Student
 from .models import AcademicAttendanceRecord, AttendanceRecord
 from .serializers import AcademicAttendanceRecordSerializer, AttendanceRecordSerializer
 from classes.models import Enrollment
+from routines.holiday_utils import get_holiday_for_date
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -112,6 +111,8 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         if not school_class_id or not dt:
             return Response({"detail": "class and date are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        holiday = get_holiday_for_date(dt)
+
         try:
             school_class = SchoolClass.objects.get(id=school_class_id)
         except SchoolClass.DoesNotExist:
@@ -154,6 +155,9 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
                 "school_class_label": school_class.name,
                 "section": section,
                 "date": str(dt),
+                "is_holiday": bool(holiday),
+                "holiday": holiday,
+                "attendance_disabled": bool(holiday),
                 "teacher": {
                     "id": teacher.id,
                     "username": teacher.username,
@@ -175,6 +179,13 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         dt = parse_date(date_raw) if isinstance(date_raw, str) else None
         if not school_class_id or not dt:
             return Response({"detail": "class and date are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        holiday = get_holiday_for_date(dt)
+        if holiday:
+            return Response(
+                {"detail": f"Attendance is disabled for holiday: {holiday.get('title') or 'Holiday'}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not isinstance(items, list):
             return Response({"detail": "items must be a list."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -230,7 +241,30 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
             .annotate(count=Count("id"), present=Count("id", filter=Q(status=AcademicAttendanceRecord.STATUS_PRESENT)), absent=Count("id", filter=Q(status=AcademicAttendanceRecord.STATUS_ABSENT)), late=Count("id", filter=Q(status=AcademicAttendanceRecord.STATUS_LATE)))
             .order_by("date")
         )
-        return Response([{"date": str(r["date"]), "count": r["count"], "present": r["present"], "absent": r["absent"], "late": r["late"]} for r in grouped])
+
+        out = [{"date": str(r["date"]), "count": r["count"], "present": r["present"], "absent": r["absent"], "late": r["late"]} for r in grouped]
+        existing_dates = {r["date"] for r in out if r.get("date")}
+
+        cur = start
+        one_day = datetime.timedelta(days=1)
+        while cur <= end:
+            if str(cur) not in existing_dates:
+                hol = get_holiday_for_date(cur)
+                if hol:
+                    out.append(
+                        {
+                            "date": str(cur),
+                            "count": 1,
+                            "present": 0,
+                            "absent": 0,
+                            "late": 0,
+                            "is_holiday": True,
+                            "holiday": hol,
+                        }
+                    )
+            cur = cur + one_day
+
+        return Response(sorted(out, key=lambda x: x.get("date") or ""))
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
@@ -280,3 +314,66 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
             )
 
         return Response({"class": int(school_class_id), "section": section, "month": month, "students": out})
+
+    @action(detail=False, methods=["get"], url_path="month-grid")
+    def month_grid(self, request):
+        school_class_id = request.query_params.get("class") or request.query_params.get("school_class")
+        section = (request.query_params.get("section") or "").strip().upper()
+        month = (request.query_params.get("month") or "").strip()  # YYYY-MM
+        if not school_class_id or not month or len(month) != 7:
+            return Response({"detail": "class and month (YYYY-MM) are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            year = int(month[:4])
+            mon = int(month[5:7])
+            start = datetime.date(year, mon, 1)
+            end = datetime.date(year, mon + 1, 1) - datetime.timedelta(days=1) if mon < 12 else datetime.date(year, 12, 31)
+        except Exception:
+            return Response({"detail": "Invalid month."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            school_class = SchoolClass.objects.get(id=school_class_id)
+        except SchoolClass.DoesNotExist:
+            return Response({"detail": "Class not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if school_class.sections:
+            if not section:
+                return Response({"detail": "section is required for this class."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            section = ""
+
+        students_qs = Student.objects.filter(school_class_id=school_class_id)
+        if section:
+            students_qs = students_qs.filter(section=section)
+        students_qs = students_qs.order_by("first_name", "last_name")
+
+        records = AcademicAttendanceRecord.objects.filter(school_class_id=school_class_id, section=section, date__gte=start, date__lte=end).values(
+            "student_id", "date", "status"
+        )
+        by_student_day: dict[int, dict[str, str]] = {}
+        for r in records:
+            sid = r["student_id"]
+            day = f"{int(r['date'].day):02d}"
+            by_student_day.setdefault(sid, {})[day] = r["status"]
+
+        days = [f"{d:02d}" for d in range(1, end.day + 1)]
+        out = []
+        for s in students_qs:
+            out.append(
+                {
+                    "id": s.id,
+                    "name": f"{s.first_name} {s.last_name}".strip(),
+                    "days": by_student_day.get(s.id, {}),
+                }
+            )
+
+        return Response(
+            {
+                "class": int(school_class_id),
+                "school_class_label": school_class.name,
+                "section": section,
+                "month": month,
+                "days": days,
+                "students": out,
+            }
+        )

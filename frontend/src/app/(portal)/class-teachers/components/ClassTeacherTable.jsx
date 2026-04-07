@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { Link } from 'react-router';
 
-import AddSubjectTeacher from './AddSubjectTeacher';
+import AddClassTeacher from './AddClassTeacher';
 import DeleteModal from './DeleteModal';
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
 import Pagination from '@/components/Pagination';
 
-const SubjectTeacherTable = () => {
+const ClassTeacherTable = () => {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,13 +25,13 @@ const SubjectTeacherTable = () => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await apiJson(`/subject-teachers/?page=${nextPage}`);
+      const data = await apiJson(`/class-teachers/?page=${nextPage}`);
       const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
       setItems(results);
       setCount(typeof data?.count === 'number' ? data.count : results.length);
       setPage(nextPage);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load teachers.');
+      setError(e instanceof Error ? e.message : 'Failed to load class teachers.');
     } finally {
       setIsLoading(false);
     }
@@ -49,42 +49,41 @@ const SubjectTeacherTable = () => {
 
   const openAddModal = () => {
     setEditing(null);
-    requestAnimationFrame(() => openOverlay('#subject-teacher-edit-modal'));
+    requestAnimationFrame(() => openOverlay('#class-teacher-edit-modal'));
   };
   const openEditModal = row => {
     setEditing(row);
-    requestAnimationFrame(() => openOverlay('#subject-teacher-edit-modal'));
+    requestAnimationFrame(() => openOverlay('#class-teacher-edit-modal'));
   };
   const openDeleteModal = row => {
     setSelected(row);
-    requestAnimationFrame(() => openOverlay('#subject-teacher-delete-modal'));
+    requestAnimationFrame(() => openOverlay('#class-teacher-delete-modal'));
   };
 
   const onCreate = async payload => {
-    const created = await apiJson('/subject-teachers/', { method: 'POST', body: payload });
+    const created = await apiJson('/class-teachers/', { method: 'POST', body: payload });
     setItems(prev => [created, ...prev].slice(0, 10));
     setCount(prev => prev + 1);
-    setFlash('Teacher added successfully.');
-    return created;
+    setFlash('Class teacher assigned successfully.');
   };
   const onUpdate = async (row, payload) => {
-    const updated = await apiJson(`/subject-teachers/${row.id}/`, { method: 'PATCH', body: payload });
+    const updated = await apiJson(`/class-teachers/${row.id}/`, { method: 'PATCH', body: payload });
     setItems(prev => prev.map(d => (d.id === row.id ? updated : d)));
-    setFlash('Teacher updated successfully.');
+    setFlash('Class teacher updated successfully.');
   };
   const onDelete = async () => {
     if (!selected?.id) return;
-    await apiJson(`/subject-teachers/${selected.id}/`, { method: 'DELETE' });
+    await apiJson(`/class-teachers/${selected.id}/`, { method: 'DELETE' });
     setItems(prev => prev.filter(d => d.id !== selected.id));
     setSelected(null);
     setCount(prev => Math.max(0, prev - 1));
-    setFlash('Teacher deleted successfully.');
+    setFlash('Class teacher removed successfully.');
   };
 
   return (
     <div className="card">
       <div className="card-header flex justify-between items-center">
-        <h6 className="card-title">Teachers</h6>
+        <h6 className="card-title">Class Teachers</h6>
         <button
           className="btn btn-sm bg-primary text-white flex items-center gap-1"
           onClick={e => {
@@ -94,7 +93,7 @@ const SubjectTeacherTable = () => {
           }}
           type="button"
         >
-          <LuPlus className="size-4" /> Add Teacher
+          <LuPlus className="size-4" /> Add Class Teacher
         </button>
       </div>
 
@@ -119,7 +118,7 @@ const SubjectTeacherTable = () => {
 
         {!authStorage.getAccess() ? (
           <div className="px-5 py-4 text-sm text-default-600">
-            Please sign in from <Link className="text-primary underline" to="/portal">Portal</Link> to load teachers from backend.
+            Please sign in from <Link className="text-primary underline" to="/portal">Portal</Link> to load class teachers from backend.
           </div>
         ) : null}
 
@@ -132,10 +131,8 @@ const SubjectTeacherTable = () => {
                 <thead className="font-semibold whitespace-nowrap">
                   <tr className="text-sm text-default-800 divide-x divide-default-200">
                     <th className="px-3.5 py-3 text-start">#</th>
-                    <th className="px-3.5 py-3 text-start">Code</th>
-                    <th className="px-3.5 py-3 text-start">Teacher Name</th>
-                    <th className="px-3.5 py-3 text-start">Email</th>
-                    <th className="px-3.5 py-3 text-start">Phone</th>
+                    <th className="px-3.5 py-3 text-start">Class</th>
+                    <th className="px-3.5 py-3 text-start">Teacher</th>
                     <th className="px-3.5 py-3 text-start">Action</th>
                   </tr>
                 </thead>
@@ -143,7 +140,7 @@ const SubjectTeacherTable = () => {
                 <tbody className="divide-y divide-default-200">
                   {isLoading ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={5}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
                         Loading...
                       </td>
                     </tr>
@@ -151,8 +148,8 @@ const SubjectTeacherTable = () => {
 
                   {!isLoading && items.length === 0 ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={5}>
-                        No teachers found.
+                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                        No class teachers found.
                       </td>
                     </tr>
                   ) : null}
@@ -160,10 +157,8 @@ const SubjectTeacherTable = () => {
                   {items.map(row => (
                     <tr key={row.id} className="text-default-800 font-normal whitespace-nowrap divide-x divide-default-200">
                       <td className="px-3.5 py-3 text-sm">{row.id}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.teacher_code || '-'}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.name}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.user_email || row.email || '-'}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.phone || '-'}</td>
+                      <td className="px-3.5 py-3 text-sm">{row.classroom_label || '-'}</td>
+                      <td className="px-3.5 py-3 text-sm">{row.teacher_label || '-'}</td>
                       <td className="px-3.5 py-3">
                         <div className="flex items-center gap-2">
                           <button
@@ -176,7 +171,7 @@ const SubjectTeacherTable = () => {
                             className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
                             aria-haspopup="dialog"
                             aria-expanded="false"
-                            aria-controls="subject-teacher-edit-modal"
+                            aria-controls="class-teacher-edit-modal"
                           >
                             <LuPencil className="size-4" />
                           </button>
@@ -191,7 +186,7 @@ const SubjectTeacherTable = () => {
                             className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
                             aria-haspopup="dialog"
                             aria-expanded="false"
-                            aria-controls="subject-teacher-delete-modal"
+                            aria-controls="class-teacher-delete-modal"
                           >
                             <LuTrash2 className="size-4" />
                           </button>
@@ -213,12 +208,12 @@ const SubjectTeacherTable = () => {
         </div>
       </div>
 
-      <DeleteModal subjectTeacher={selected} onConfirm={async () => {
+      <DeleteModal classTeacher={selected} onConfirm={async () => {
         await onDelete();
         if (items.length === 1 && page > 1) await load(page - 1);
         else await load(page);
       }} />
-      <AddSubjectTeacher subjectTeacher={editing} onCreated={async p => {
+      <AddClassTeacher classTeacher={editing} onCreated={async p => {
         await onCreate(p);
         await load(1);
       }} onUpdated={async (d, p) => {
@@ -229,4 +224,4 @@ const SubjectTeacherTable = () => {
   );
 };
 
-export default SubjectTeacherTable;
+export default ClassTeacherTable;

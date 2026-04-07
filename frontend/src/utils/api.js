@@ -10,7 +10,8 @@ const parseErrorMessage = (data, res) => {
     }
     const firstKey = Object.keys(data)[0];
     const firstVal = firstKey ? data[firstKey] : null;
-    if (Array.isArray(firstVal) && firstVal.length && typeof firstVal[0] === 'string') return firstVal[0];
+    if (Array.isArray(firstVal) && firstVal.length && typeof firstVal[0] === 'string') return `${firstKey}: ${firstVal[0]}`;
+    if (typeof firstVal === 'string' && firstVal) return `${firstKey}: ${firstVal}`;
   }
   return (
     data?.detail ||

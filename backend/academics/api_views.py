@@ -1,4 +1,7 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from django.db.models.deletion import ProtectedError
+from django.db.utils import OperationalError
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,8 +10,9 @@ from django.db.models import Q
 from users.permissions import IsAdmin
 
 from .pagination import AcademicsPagination
-from .models import Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
+from .models import ClassTeacher, Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
 from .serializers import (
+    ClassTeacherSerializer,
     DepartmentSerializer,
     RoomSerializer,
     SchoolClassSerializer,
@@ -187,6 +191,61 @@ class SubjectTeacherViewSet(viewsets.ModelViewSet):
                 }
             )
         return Response(options)
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+        else:
+            self.permission_classes = [permissions.IsAuthenticated]
+        return super().get_permissions()
+
+
+class ClassTeacherViewSet(viewsets.ModelViewSet):
+    queryset = ClassTeacher.objects.all().select_related("school_class", "teacher")
+    serializer_class = ClassTeacherSerializer
+    pagination_class = AcademicsPagination
+
+    def _handle_save_exception(self, e: Exception):
+        if isinstance(e, DjangoValidationError):
+            message_dict = getattr(e, "message_dict", None)
+            if isinstance(message_dict, dict) and message_dict:
+                return Response(message_dict, status=status.HTTP_400_BAD_REQUEST)
+            messages = getattr(e, "messages", None)
+            if isinstance(messages, list) and messages:
+                return Response({"detail": messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Invalid data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if isinstance(e, IntegrityError):
+            return Response(
+                {"classroom": ["A class teacher is already assigned for this class."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if isinstance(e, OperationalError):
+            return Response(
+                {"detail": "Database is not migrated for Class Teachers. Please run: python manage.py migrate"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        raise e
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except (DjangoValidationError, IntegrityError, OperationalError) as e:
+            return self._handle_save_exception(e)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except (DjangoValidationError, IntegrityError, OperationalError) as e:
+            return self._handle_save_exception(e)
+
+    def partial_update(self, request, *args, **kwargs):
+        try:
+            return super().partial_update(request, *args, **kwargs)
+        except (DjangoValidationError, IntegrityError, OperationalError) as e:
+            return self._handle_save_exception(e)
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
