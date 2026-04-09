@@ -74,6 +74,7 @@ const PortalRoles = lazy(() => import('@/app/(portal)/roles'));
 const PortalRolePermissions = lazy(() => import('@/app/(portal)/roles/permissions'));
 const PortalSyllabus = lazy(() => import('@/app/(portal)/syllabus'));
 const PortalSyllabusDetail = lazy(() => import('@/app/(portal)/syllabus/detail'));
+const PortalSpecialClasses = lazy(() => import('@/app/(portal)/special-classes'));
 const PortalStudents = lazy(() => import('@/app/(portal)/students'));
 const PortalAcademicAttendance = lazy(() => import('@/app/(portal)/attendance'));
 const PortalAcademicAttendanceReport = lazy(() => import('@/app/(portal)/attendance-report'));
@@ -259,6 +260,10 @@ export const layoutsRoutes = [{
   path: '/portal/syllabus/:id',
   name: 'PortalSyllabusDetail',
   element: <PortalSyllabusDetail />
+}, {
+  path: '/portal/special-classes',
+  name: 'PortalSpecialClasses',
+  element: <PortalSpecialClasses />
 }, {
   path: '/portal/class-routine',
   name: 'PortalClassRoutine',

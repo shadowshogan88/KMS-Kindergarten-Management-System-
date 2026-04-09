@@ -73,6 +73,10 @@ export const menuItemsData = [{
     key: 'Live Class Settings',
     label: 'Live Class Settings',
     href: '/portal/live-class'
+  }, {
+    key: 'Special Classes',
+    label: 'Special Classes',
+    href: '/portal/special-classes'
   }]
 }, {
   key: 'Educational',
@@ -82,6 +86,10 @@ export const menuItemsData = [{
     key: 'Syllabus',
     label: 'Syllabus',
     href: '/portal/syllabus'
+  }, {
+    key: 'Special Classes',
+    label: 'Special Classes',
+    href: '/portal/special-classes'
   }]
 }, {
   key: 'Settings',

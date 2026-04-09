@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Classroom, Enrollment, LiveClass
+from .models import Classroom, Enrollment, LiveClass, SpecialLiveClass
 
 
 class ClassroomSerializer(serializers.ModelSerializer):
@@ -37,3 +37,28 @@ class LiveClassSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("created_by", "created_at")
 
+
+class SpecialLiveClassSerializer(serializers.ModelSerializer):
+    school_class_name = serializers.CharField(source="school_class.name", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+
+    class Meta:
+        model = SpecialLiveClass
+        fields = (
+            "id",
+            "school_class",
+            "school_class_name",
+            "section",
+            "date",
+            "start_time",
+            "end_time",
+            "title",
+            "description",
+            "meet_link",
+            "is_active",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("created_by", "created_at", "updated_at")
