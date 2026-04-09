@@ -15,7 +15,7 @@ const PortalNotices = () => {
     <>
       <PageMeta title="Notices" />
       <main>
-        <PageBreadcrumb title="Notices" subtitle="Settings" />
+        <PageBreadcrumb title="Notices" subtitle="Academics" />
         <NoticesManager />
       </main>
     </>
@@ -23,4 +23,3 @@ const PortalNotices = () => {
 };
 
 export default PortalNotices;
-

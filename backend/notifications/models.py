@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+from academics.models import SchoolClass
 from classes.models import Classroom
 
 
@@ -36,8 +37,20 @@ class Notice(models.Model):
     Supports pin/unpin.
     """
 
+    AUDIENCE_ALL_SCHOOL = "ALL_SCHOOL"
+    AUDIENCE_TEACHERS = "TEACHERS"
+    AUDIENCE_PARENTS = "PARENTS"
+
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_ALL_SCHOOL, "All School"),
+        (AUDIENCE_TEACHERS, "All Teachers"),
+        (AUDIENCE_PARENTS, "All Parents"),
+    ]
+
     title = models.CharField(max_length=200)
     content_html = models.TextField(blank=True, default="")
+    audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default=AUDIENCE_ALL_SCHOOL)
+    school_classes = models.ManyToManyField(SchoolClass, blank=True, related_name="notices")
     is_pinned = models.BooleanField(default=False)
     pinned_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)

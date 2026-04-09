@@ -12,6 +12,6 @@ class AnnouncementAdmin(admin.ModelAdmin):
 
 @admin.register(Notice)
 class NoticeAdmin(admin.ModelAdmin):
-    list_display = ("title", "is_pinned", "is_active", "created_by", "created_at", "updated_at")
-    list_filter = ("is_pinned", "is_active")
+    list_display = ("title", "audience", "is_pinned", "is_active", "created_by", "created_at", "updated_at")
+    list_filter = ("audience", "school_classes", "is_pinned", "is_active")
     search_fields = ("title", "content_html")

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LuPin, LuPinOff, LuPlus, LuRefreshCcw, LuTrash2 } from 'react-icons/lu';
+import { LuPin, LuPinOff, LuPlus, LuRefreshCcw, LuSearch, LuTrash2, LuUpload } from 'react-icons/lu';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import {
   ClassicEditor,
@@ -17,6 +17,9 @@ import 'ckeditor5/ckeditor5.css';
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { canPortal } from '@/utils/portalPermissions';
+import { openOverlay, closeOverlay } from '@/utils/overlay';
+
+const closeModal = () => closeOverlay('#notice-edit-modal');
 
 const sortNotices = list => {
   const arr = Array.isArray(list) ? list.slice() : [];
@@ -39,11 +42,30 @@ const NoticesManager = () => {
   const canEdit = useMemo(() => canPortal('/portal/notices', 'edit'), []);
   const canDelete = useMemo(() => canPortal('/portal/notices', 'delete'), []);
 
-  const [title, setTitle] = useState('');
-  const [contentHtml, setContentHtml] = useState('');
-  const [isPinned, setIsPinned] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  const [q, setQ] = useState('');
+  const [audienceFilter, setAudienceFilter] = useState('');
+  const [schoolClassFilter, setSchoolClassFilter] = useState('');
+
+  const [classes, setClasses] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({
+    title: '',
+    content_html: '',
+    audience: 'ALL_SCHOOL',
+    school_classes: [],
+    is_active: true,
+    is_pinned: false,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadClasses = async () => {
+    try {
+      const data = await apiJson('/academic-classes/simple/');
+      setClasses(Array.isArray(data) ? data : []);
+    } catch {
+      setClasses([]);
+    }
+  };
 
   const load = async () => {
     const canUseApi = Boolean(authStorage.getAccess());
@@ -51,7 +73,12 @@ const NoticesManager = () => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await apiJson('/notices/?page=1');
+      const qs = new URLSearchParams();
+      qs.set('page', '1');
+      if (q.trim()) qs.set('q', q.trim());
+      if (audienceFilter) qs.set('audience', audienceFilter);
+      if (schoolClassFilter) qs.set('class', schoolClassFilter);
+      const data = await apiJson(`/notices/?${qs.toString()}`);
       const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
       setItems(sortNotices(results));
     } catch (e) {
@@ -63,6 +90,8 @@ const NoticesManager = () => {
 
   useEffect(() => {
     load();
+    loadClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -71,39 +100,74 @@ const NoticesManager = () => {
     return () => clearTimeout(t);
   }, [flash]);
 
+  const openCreate = () => {
+    setEditing(null);
+    setError('');
+    setForm({
+      title: '',
+      content_html: '',
+      audience: audienceFilter || 'ALL_SCHOOL',
+      school_classes: schoolClassFilter ? [String(schoolClassFilter)] : [],
+      is_active: true,
+      is_pinned: false,
+    });
+    requestAnimationFrame(() => openOverlay('#notice-edit-modal'));
+  };
+
+  const openEdit = it => {
+    setEditing(it);
+    setError('');
+    setForm({
+      title: it?.title || '',
+      content_html: it?.content_html || '',
+      audience: it?.audience || 'ALL_SCHOOL',
+      school_classes: Array.isArray(it?.school_classes) ? it.school_classes.map(String) : [],
+      is_active: Boolean(it?.is_active),
+      is_pinned: Boolean(it?.is_pinned),
+    });
+    requestAnimationFrame(() => openOverlay('#notice-edit-modal'));
+  };
+
   const submit = async () => {
     setError('');
-    if (!canCreate) {
-      setError('You do not have permission to create notices.');
-      return;
-    }
-    if (!title.trim()) {
-      setError('Title is required.');
-      return;
-    }
+    const isEdit = Boolean(editing?.id);
+    if (isEdit && !canEdit) return setError('You do not have permission to edit notices.');
+    if (!isEdit && !canCreate) return setError('You do not have permission to create notices.');
+    if (!form.title.trim()) return setError('Title is required.');
 
     setIsSubmitting(true);
     try {
       const payload = {
-        title: title.trim(),
-        content_html: contentHtml || '',
-        is_active: Boolean(isActive),
+        title: form.title.trim(),
+        content_html: form.content_html || '',
+        audience: form.audience,
+        school_classes: Array.isArray(form.school_classes) ? form.school_classes : [],
+        is_active: Boolean(form.is_active),
       };
 
-      const created = await apiJson('/notices/', { method: 'POST', body: payload });
-      setItems(prev => sortNotices([created, ...(Array.isArray(prev) ? prev : [])]));
-      setTitle('');
-      setContentHtml('');
-      setIsPinned(false);
-      setIsActive(true);
-      setFlash('Notice created.');
+      if (isEdit) {
+        const updated = await apiJson(`/notices/${editing.id}/`, { method: 'PATCH', body: payload });
+        setItems(prev => sortNotices(prev.map(n => (n.id === updated.id ? updated : n))));
+        setFlash('Notice updated.');
 
-      if (isPinned && created?.id) {
-        const pinned = await apiJson(`/notices/${created.id}/pin/`, { method: 'POST', body: { is_pinned: true } });
-        setItems(prev => sortNotices(prev.map(n => (n.id === pinned.id ? pinned : n))));
+        if (Boolean(form.is_pinned) !== Boolean(editing?.is_pinned)) {
+          const pinned = await apiJson(`/notices/${editing.id}/pin/`, { method: 'POST', body: { is_pinned: Boolean(form.is_pinned) } });
+          setItems(prev => sortNotices(prev.map(n => (n.id === pinned.id ? pinned : n))));
+        }
+      } else {
+        const created = await apiJson('/notices/', { method: 'POST', body: payload });
+        setItems(prev => sortNotices([created, ...(Array.isArray(prev) ? prev : [])]));
+        setFlash('Notice created.');
+
+        if (form.is_pinned && created?.id) {
+          const pinned = await apiJson(`/notices/${created.id}/pin/`, { method: 'POST', body: { is_pinned: true } });
+          setItems(prev => sortNotices(prev.map(n => (n.id === pinned.id ? pinned : n))));
+        }
       }
+
+      closeModal();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create notice.');
+      setError(e instanceof Error ? e.message : 'Failed to save notice.');
     } finally {
       setIsSubmitting(false);
     }
@@ -152,113 +216,290 @@ const NoticesManager = () => {
       ) : null}
 
       <div className="card">
-        <div className="card-header flex justify-between items-center">
-          <h6 className="card-title">Create Notice</h6>
-          <button type="button" className="btn btn-sm bg-default-200 hover:bg-default-300 text-default-700" onClick={load} disabled={isLoading}>
-            <LuRefreshCcw className="inline size-4" /> Refresh
-          </button>
+        <div className="card-header flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+          <h6 className="card-title">Notices</h6>
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn btn-sm bg-default-200 hover:bg-default-300 text-default-700" onClick={load} disabled={isLoading}>
+              <LuRefreshCcw className="inline size-4" /> Refresh
+            </button>
+            <button type="button" className="btn btn-sm bg-primary text-white" onClick={openCreate} disabled={!canCreate}>
+              <LuPlus className="inline size-4" /> Add Notice
+            </button>
+          </div>
         </div>
         <div className="p-5">
-          {error ? (
-            <div className="mb-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
-          ) : null}
+          {error ? <div className="mb-4 text-sm text-danger">{error}</div> : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
             <div className="lg:col-span-2">
-              <label className="inline-block mb-2 text-base font-medium">Title</label>
-              <input className="form-input" value={title} onChange={e => setTitle(e.target.value)} disabled={isSubmitting || !canCreate} />
+              <label className="sr-only">Search</label>
+              <div className="relative">
+                <input className="ps-11 form-input" placeholder="Search notices..." value={q} onChange={e => setQ(e.target.value)} />
+                <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-4">
+                  <LuSearch className="size-4 text-default-500" />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input id="notice-active" className="form-checkbox rounded" type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} disabled={isSubmitting || !canCreate} />
-              <label htmlFor="notice-active" className="text-sm text-default-700">Active</label>
+            <div>
+              <label className="sr-only">Audience</label>
+              <select className="form-input" value={audienceFilter} onChange={e => setAudienceFilter(e.target.value)}>
+                <option value="">All audiences</option>
+                <option value="ALL_SCHOOL">All School</option>
+                <option value="TEACHERS">All Teachers</option>
+                <option value="PARENTS">All Parents</option>
+              </select>
             </div>
-            <div className="flex items-center gap-2">
-              <input id="notice-pinned" className="form-checkbox rounded" type="checkbox" checked={isPinned} onChange={e => setIsPinned(e.target.checked)} disabled={isSubmitting || !canCreate} />
-              <label htmlFor="notice-pinned" className="text-sm text-default-700">Pin this notice</label>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="inline-block mb-2 text-base font-medium">Content</label>
-            <div className={`rounded-md border border-default-200 ${!canCreate ? 'opacity-60' : ''}`}>
-              <CKEditor
-                editor={ClassicEditor}
-                data={contentHtml}
-                disabled={isSubmitting || !canCreate}
-                config={{
-                  plugins: [Essentials, Paragraph, Bold, Italic, Underline, Link, List, Heading],
-                  toolbar: ['heading', '|', 'bold', 'italic', 'underline', '|', 'bulletedList', 'numberedList', '|', 'link', '|', 'undo', 'redo'],
-                }}
-                onChange={(_, editor) => {
-                  const data = editor.getData();
-                  setContentHtml(data);
-                }}
-              />
+            <div>
+              <label className="sr-only">Class</label>
+              <select className="form-input" value={schoolClassFilter} onChange={e => setSchoolClassFilter(e.target.value)}>
+                <option value="">All classes</option>
+                {classes.map(c => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="mt-4 flex justify-end">
-            <button type="button" className="btn bg-primary text-white flex items-center gap-2" onClick={submit} disabled={isSubmitting || !canCreate}>
-              <LuPlus className="size-4" /> {isSubmitting ? 'Saving...' : 'Create Notice'}
+          <div className="mt-3 flex justify-end">
+            <button type="button" className="btn bg-default-100 text-default-800" onClick={load} disabled={isLoading}>
+              Apply Filters
             </button>
+          </div>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="min-w-full divide-y divide-default-200">
+              <thead className="bg-default-100 font-normal whitespace-nowrap">
+                <tr className="text-sm text-default-800">
+                  <th className="px-3.5 py-3 font-medium text-start">Pinned</th>
+                  <th className="px-3.5 py-3 font-medium text-start">Title</th>
+                  <th className="px-3.5 py-3 font-medium text-start">Audience</th>
+                  <th className="px-3.5 py-3 font-medium text-start">Classes</th>
+                  <th className="px-3.5 py-3 font-medium text-start">Active</th>
+                  <th className="px-3.5 py-3 font-medium text-start">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-default-200">
+                {isLoading ? (
+                  <tr className="text-default-800 font-normal whitespace-nowrap">
+                    <td className="px-3.5 py-4 text-sm" colSpan={6}>
+                      Loading...
+                    </td>
+                  </tr>
+                ) : !items.length ? (
+                  <tr className="text-default-800 font-normal whitespace-nowrap">
+                    <td className="px-3.5 py-4 text-sm" colSpan={6}>
+                      No notices found.
+                    </td>
+                  </tr>
+                ) : null}
+
+                {items.map(n => (
+                  <tr key={n.id} className="text-default-800 font-normal whitespace-nowrap">
+                    <td className="px-3.5 py-3 text-sm">
+                      <button
+                        type="button"
+                        className="btn size-8 bg-default-200 hover:bg-warning/10 hover:text-warning text-default-600"
+                        title={n.is_pinned ? 'Unpin' : 'Pin'}
+                        onClick={() => togglePin(n)}
+                        disabled={!canEdit}
+                      >
+                        {n.is_pinned ? <LuPinOff className="size-4" /> : <LuPin className="size-4" />}
+                      </button>
+                    </td>
+                    <td className="px-3.5 py-3 text-sm">
+                      <div className="font-medium">{n.title}</div>
+                      <div className="text-xs text-default-500">{n.created_by_username ? `By ${n.created_by_username}` : ''}</div>
+                    </td>
+                    <td className="px-3.5 py-3 text-sm">
+                      {n.audience === 'TEACHERS' ? 'All Teachers' : n.audience === 'PARENTS' ? 'All Parents' : 'All School'}
+                    </td>
+                    <td className="px-3.5 py-3 text-sm">
+                      {Array.isArray(n?.school_classes_detail) && n.school_classes_detail.length
+                        ? n.school_classes_detail.map(x => x?.name).filter(Boolean).join(', ')
+                        : 'All classes'}
+                    </td>
+                    <td className="px-3.5 py-3 text-sm">{n.is_active ? 'Yes' : 'No'}</td>
+                    <td className="px-3.5 py-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                          title="Edit"
+                          onClick={() => openEdit(n)}
+                          disabled={!canEdit}
+                        >
+                          <LuUpload className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn size-8 bg-default-200 hover:bg-danger/10 hover:text-danger text-default-600"
+                          title="Delete"
+                          onClick={() => remove(n)}
+                          disabled={!canDelete}
+                        >
+                          <LuTrash2 className="size-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h6 className="card-title">Notices</h6>
-        </div>
-        <div className="p-5">
-          {isLoading ? <div className="text-sm text-default-500">Loading...</div> : null}
-          {!isLoading && !items.length ? <div className="text-sm text-default-500">No notices found.</div> : null}
+      <div
+        id="notice-edit-modal"
+        className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
+        role="dialog"
+        tabIndex={-1}
+        aria-labelledby="notice-edit-modal-label"
+      >
+        <div className="hs-overlay-animation-target hs-overlay-open:scale-100 hs-overlay-open:opacity-100 scale-95 opacity-0 ease-in-out transition-all duration-200 sm:max-w-2xl sm:w-full m-3 sm:mx-auto min-h-[calc(100%-56px)] flex items-center">
+          <div className="w-full flex flex-col card border border-default-200 shadow-2xs rounded-xl pointer-events-auto">
+            <div className="card-header">
+              <h3 id="notice-edit-modal-label" className="font-bold text-default-800 text-base">
+                {editing?.id ? 'Edit Notice' : 'Add Notice'}
+              </h3>
+              <div>
+                <button type="button" className="size-5 text-default-800" aria-label="Close" onClick={closeModal} disabled={isSubmitting}>
+                  <span className="sr-only">Close</span>
+                  ×
+                </button>
+              </div>
+            </div>
 
-          {items.length ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-default-200">
-                <thead className="bg-default-100 font-normal whitespace-nowrap">
-                  <tr className="text-sm text-default-800">
-                    <th className="px-3.5 py-3 font-medium text-start">Pinned</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Title</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Active</th>
-                    <th className="px-3.5 py-3 font-medium text-start">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-default-200">
-                  {items.map(n => (
-                    <tr key={n.id} className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-3 text-sm">
+            <div className="p-4 overflow-y-auto">
+              {error ? (
+                <div className="mb-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
+              ) : null}
+
+              <div className="flex flex-col gap-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <label className="inline-block mb-2 text-base font-medium">Audience</label>
+                    <select
+                      className="form-input"
+                      value={form.audience}
+                      onChange={e => setForm(v => ({ ...v, audience: e.target.value }))}
+                      disabled={isSubmitting}
+                    >
+                      <option value="ALL_SCHOOL">All School</option>
+                      <option value="TEACHERS">All Teachers</option>
+                      <option value="PARENTS">All Parents</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="inline-block mb-2 text-base font-medium">Classes (optional)</label>
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          className="btn size-8 bg-default-200 hover:bg-warning/10 hover:text-warning text-default-600"
-                          title={n.is_pinned ? 'Unpin' : 'Pin'}
-                          onClick={() => togglePin(n)}
-                          disabled={!canEdit}
+                          className="btn btn-xs bg-default-200 hover:bg-default-300 text-default-700"
+                          onClick={() => setForm(v => ({ ...v, school_classes: classes.map(c => String(c.id)) }))}
+                          disabled={isSubmitting || classes.length === 0}
                         >
-                          {n.is_pinned ? <LuPinOff className="size-4" /> : <LuPin className="size-4" />}
+                          Select all
                         </button>
-                      </td>
-                      <td className="px-3.5 py-3 text-sm">{n.title}</td>
-                      <td className="px-3.5 py-3 text-sm">{n.is_active ? 'Yes' : 'No'}</td>
-                      <td className="px-3.5 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="btn size-8 bg-default-200 hover:bg-danger/10 hover:text-danger text-default-600"
-                            title="Delete"
-                            onClick={() => remove(n)}
-                            disabled={!canDelete}
-                          >
-                            <LuTrash2 className="size-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <button
+                          type="button"
+                          className="btn btn-xs bg-default-200 hover:bg-default-300 text-default-700"
+                          onClick={() => setForm(v => ({ ...v, school_classes: [] }))}
+                          disabled={isSubmitting}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <select
+                      className="form-input"
+                      multiple
+                      size={6}
+                      value={form.school_classes}
+                      onChange={e => {
+                        const selected = Array.from(e.target.selectedOptions).map(o => String(o.value));
+                        setForm(v => ({ ...v, school_classes: selected }));
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      {classes.map(c => (
+                        <option key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-1 text-xs text-default-500">Keep empty to send to all classes.</div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="inline-block mb-2 text-base font-medium">Title</label>
+                  <input className="form-input" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} disabled={isSubmitting} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      className="form-checkbox rounded"
+                      type="checkbox"
+                      checked={form.is_active}
+                      onChange={e => setForm(v => ({ ...v, is_active: e.target.checked }))}
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-default-700">Active</span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      className="form-checkbox rounded"
+                      type="checkbox"
+                      checked={form.is_pinned}
+                      onChange={e => setForm(v => ({ ...v, is_pinned: e.target.checked }))}
+                      disabled={isSubmitting || (!editing?.id && !canCreate) || (editing?.id && !canEdit)}
+                    />
+                    <span className="text-sm text-default-700">Pin this notice</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="inline-block mb-2 text-base font-medium">Content</label>
+                  <div className="rounded-md border border-default-200">
+                    <CKEditor
+                      editor={ClassicEditor}
+                      data={form.content_html}
+                      disabled={isSubmitting}
+                      config={{
+                        plugins: [Essentials, Paragraph, Bold, Italic, Underline, Link, List, Heading],
+                        toolbar: ['heading', '|', 'bold', 'italic', 'underline', '|', 'bulletedList', 'numberedList', '|', 'link', '|', 'undo', 'redo'],
+                      }}
+                      onChange={(_, editor) => {
+                        const data = editor.getData();
+                        setForm(v => ({ ...v, content_html: data }));
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : null}
+
+            <div className="card-footer flex justify-end gap-2">
+              <button type="button" className="btn bg-default-100 text-default-800" onClick={closeModal} disabled={isSubmitting}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn bg-primary text-white"
+                onClick={submit}
+                disabled={isSubmitting || (editing?.id ? !canEdit : !canCreate)}
+              >
+                {isSubmitting ? 'Saving...' : editing?.id ? 'Update Notice' : 'Add Notice'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

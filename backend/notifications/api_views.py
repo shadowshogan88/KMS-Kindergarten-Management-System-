@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import PermissionDenied
@@ -6,6 +7,7 @@ from rest_framework.response import Response
 
 from users.permissions import IsAdmin, IsTeacher
 from users.rbac_permissions import HasPortalPermission
+from students.models import Student
 
 from .models import Announcement, Notice
 from .serializers import AnnouncementSerializer, NoticeSerializer
@@ -45,7 +47,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
-    queryset = Notice.objects.select_related("created_by").all()
+    queryset = Notice.objects.select_related("created_by").prefetch_related("school_classes").all()
     serializer_class = NoticeSerializer
     rbac_path = "/portal/notices"
 
@@ -58,11 +60,61 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
+        user = self.request.user
+        role = getattr(user, "role", None)
+
         qs = super().get_queryset()
-        # Only active notices for non-admin
-        if getattr(self.request.user, "role", None) != "ADMIN":
+
+        q = (self.request.query_params.get("q") or "").strip()
+        if q:
+            qs = qs.filter(Q(title__icontains=q) | Q(content_html__icontains=q))
+
+        audience = (self.request.query_params.get("audience") or "").strip().upper()
+        if audience:
+            qs = qs.filter(audience=audience)
+
+        class_id = (self.request.query_params.get("class") or "").strip()
+        if class_id:
+            qs = qs.filter(school_classes__id=class_id)
+
+        # Only active notices for non-admin.
+        if role != "ADMIN":
             qs = qs.filter(is_active=True)
-        return qs
+
+        # Role-based audience filtering.
+        if role == "TEACHER":
+            qs = qs.filter(audience__in=[Notice.AUDIENCE_ALL_SCHOOL, Notice.AUDIENCE_TEACHERS])
+            return qs.distinct()
+
+        if role == "PARENT":
+            qs = qs.filter(audience__in=[Notice.AUDIENCE_ALL_SCHOOL, Notice.AUDIENCE_PARENTS])
+            child_class_ids = list(
+                Student.objects.filter(parent=user)
+                .exclude(school_class__isnull=True)
+                .values_list("school_class_id", flat=True)
+                .distinct()
+            )
+            if child_class_ids:
+                qs = qs.filter(Q(school_classes__isnull=True) | Q(school_classes__in=child_class_ids))
+            else:
+                qs = qs.filter(school_classes__isnull=True)
+            return qs.distinct()
+
+        if role == "STUDENT":
+            qs = qs.filter(audience=Notice.AUDIENCE_ALL_SCHOOL)
+            student_class_id = (
+                Student.objects.filter(user=user)
+                .exclude(school_class__isnull=True)
+                .values_list("school_class_id", flat=True)
+                .first()
+            )
+            if student_class_id:
+                qs = qs.filter(Q(school_classes__isnull=True) | Q(school_classes__in=[student_class_id]))
+            else:
+                qs = qs.filter(school_classes__isnull=True)
+            return qs.distinct()
+
+        return qs.distinct()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

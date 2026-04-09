@@ -60,6 +60,10 @@ export const menuItemsData = [{
     key: 'Classrooms',
     label: 'Classrooms',
     href: '/portal/classroom'
+  }, {
+    key: 'Notices',
+    label: 'Notices',
+    href: '/portal/notices'
   }]
 }, {
   key: 'Live Class',
@@ -84,10 +88,6 @@ export const menuItemsData = [{
   label: 'Settings',
   icon: LuShieldCheck,
   children: [{
-    key: 'Notices',
-    label: 'Notices',
-    href: '/portal/notices'
-  }, {
     key: 'Roles',
     label: 'Roles',
     href: '/portal/roles'
