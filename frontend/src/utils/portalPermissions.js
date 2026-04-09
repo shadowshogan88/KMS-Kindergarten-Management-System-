@@ -34,6 +34,7 @@ const hasAnyPermissions = () => Object.keys(getPortalPermissions()).length > 0;
 export const canPortal = (pathnameOrHref, action = 'view') => {
   const normalized = normalizePath(pathnameOrHref);
   if (normalized === '/portal/logout' || normalized.startsWith('/portal/logout/')) return true;
+  if (normalized === '/portal/dashboard' || normalized.startsWith('/portal/dashboard/')) return true;
 
   // If no portal role assigned, backend allows everything; keep frontend consistent.
   if (!hasAnyPermissions()) return true;
