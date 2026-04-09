@@ -19,6 +19,7 @@ const NoticeDetailPage = ({ noticeId }) => {
   const [error, setError] = useState('');
 
   const pdfUrl = item?.pdf_file || '';
+  const desc = String(item?.description || '').trim();
   const classNames = Array.isArray(item?.school_classes_detail)
     ? item.school_classes_detail.map(x => x?.name).filter(Boolean).join(', ')
     : '';
@@ -83,9 +84,9 @@ const NoticeDetailPage = ({ noticeId }) => {
         <div className="p-5">
           {error ? <div className="mb-4 text-sm text-danger">{error}</div> : null}
 
-          {item?.description ? (
+          {desc ? (
             <div className="mb-4 rounded-md border border-default-200 bg-default-50 px-4 py-3 text-sm text-default-700">
-              {item.description}
+              {desc}
             </div>
           ) : null}
 

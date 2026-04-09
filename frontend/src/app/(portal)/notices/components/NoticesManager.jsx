@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { LuEye, LuPin, LuPinOff, LuPlus, LuRefreshCcw, LuSearch, LuTrash2, LuUpload } from 'react-icons/lu';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
@@ -306,7 +306,9 @@ const NoticesManager = () => {
                   </tr>
                 ) : null}
 
-                {items.map(n => (
+                {items.map(n => {
+                  const shortDesc = String(n?.description || '').trim();
+                  return (
                   <tr key={n.id} className="text-default-800 font-normal whitespace-nowrap">
                     <td className="px-3.5 py-3 text-sm">
                       <button
@@ -322,8 +324,8 @@ const NoticesManager = () => {
                     <td className="px-3.5 py-3 text-sm">
                       <div className="font-medium">{n.title}</div>
                       <div className="text-xs text-default-500">
-                        {n.description ? String(n.description).slice(0, 60) : ''}
-                        {n.description && n.created_by_username ? ' · ' : ''}
+                        {shortDesc ? shortDesc.slice(0, 60) : ''}
+                        {shortDesc && n.created_by_username ? ' | ' : ''}
                         {n.created_by_username ? `By ${n.created_by_username}` : ''}
                       </div>
                     </td>
@@ -372,7 +374,8 @@ const NoticesManager = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -395,7 +398,7 @@ const NoticesManager = () => {
               <div>
                 <button type="button" className="size-5 text-default-800" aria-label="Close" onClick={closeModal} disabled={isSubmitting}>
                   <span className="sr-only">Close</span>
-                  ×
+                  &times;
                 </button>
               </div>
             </div>
@@ -558,3 +561,4 @@ const NoticesManager = () => {
 };
 
 export default NoticesManager;
+
