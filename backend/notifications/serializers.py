@@ -30,16 +30,19 @@ class NoticeSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source="created_by.username", read_only=True)
     school_classes = serializers.PrimaryKeyRelatedField(queryset=SchoolClass.objects.all(), many=True, required=False)
     school_classes_detail = serializers.SerializerMethodField()
+    pdf_file = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = Notice
         fields = (
             "id",
             "title",
+            "description",
             "content_html",
             "audience",
             "school_classes",
             "school_classes_detail",
+            "pdf_file",
             "is_pinned",
             "pinned_at",
             "is_active",

@@ -14,7 +14,7 @@ import {
 } from 'ckeditor5';
 import 'ckeditor5/ckeditor5.css';
 
-import { apiJson } from '@/utils/api';
+import { apiForm, apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { canPortal } from '@/utils/portalPermissions';
 import { openOverlay, closeOverlay } from '@/utils/overlay';
@@ -50,9 +50,11 @@ const NoticesManager = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     title: '',
+    description: '',
     content_html: '',
     audience: 'ALL_SCHOOL',
     school_classes: [],
+    pdf_file: null,
     is_active: true,
     is_pinned: false,
   });
@@ -105,9 +107,11 @@ const NoticesManager = () => {
     setError('');
     setForm({
       title: '',
+      description: '',
       content_html: '',
       audience: audienceFilter || 'ALL_SCHOOL',
       school_classes: schoolClassFilter ? [String(schoolClassFilter)] : [],
+      pdf_file: null,
       is_active: true,
       is_pinned: false,
     });
@@ -119,9 +123,11 @@ const NoticesManager = () => {
     setError('');
     setForm({
       title: it?.title || '',
+      description: it?.description || '',
       content_html: it?.content_html || '',
       audience: it?.audience || 'ALL_SCHOOL',
       school_classes: Array.isArray(it?.school_classes) ? it.school_classes.map(String) : [],
+      pdf_file: null,
       is_active: Boolean(it?.is_active),
       is_pinned: Boolean(it?.is_pinned),
     });
@@ -137,16 +143,19 @@ const NoticesManager = () => {
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        title: form.title.trim(),
-        content_html: form.content_html || '',
-        audience: form.audience,
-        school_classes: Array.isArray(form.school_classes) ? form.school_classes : [],
-        is_active: Boolean(form.is_active),
-      };
+      const fd = new FormData();
+      fd.set('title', form.title.trim());
+      fd.set('description', String(form.description || ''));
+      fd.set('content_html', form.content_html || '');
+      fd.set('audience', form.audience);
+      fd.set('is_active', form.is_active ? 'true' : 'false');
+      if (Array.isArray(form.school_classes)) {
+        for (const id of form.school_classes) fd.append('school_classes', String(id));
+      }
+      if (form.pdf_file) fd.set('pdf_file', form.pdf_file);
 
       if (isEdit) {
-        const updated = await apiJson(`/notices/${editing.id}/`, { method: 'PATCH', body: payload });
+        const updated = await apiForm(`/notices/${editing.id}/`, { method: 'PATCH', formData: fd });
         setItems(prev => sortNotices(prev.map(n => (n.id === updated.id ? updated : n))));
         setFlash('Notice updated.');
 
@@ -155,7 +164,7 @@ const NoticesManager = () => {
           setItems(prev => sortNotices(prev.map(n => (n.id === pinned.id ? pinned : n))));
         }
       } else {
-        const created = await apiJson('/notices/', { method: 'POST', body: payload });
+        const created = await apiForm('/notices/', { method: 'POST', formData: fd });
         setItems(prev => sortNotices([created, ...(Array.isArray(prev) ? prev : [])]));
         setFlash('Notice created.');
 
@@ -277,19 +286,20 @@ const NoticesManager = () => {
                   <th className="px-3.5 py-3 font-medium text-start">Audience</th>
                   <th className="px-3.5 py-3 font-medium text-start">Classes</th>
                   <th className="px-3.5 py-3 font-medium text-start">Active</th>
+                  <th className="px-3.5 py-3 font-medium text-start">PDF</th>
                   <th className="px-3.5 py-3 font-medium text-start">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-default-200">
                 {isLoading ? (
                   <tr className="text-default-800 font-normal whitespace-nowrap">
-                    <td className="px-3.5 py-4 text-sm" colSpan={6}>
+                    <td className="px-3.5 py-4 text-sm" colSpan={7}>
                       Loading...
                     </td>
                   </tr>
                 ) : !items.length ? (
                   <tr className="text-default-800 font-normal whitespace-nowrap">
-                    <td className="px-3.5 py-4 text-sm" colSpan={6}>
+                    <td className="px-3.5 py-4 text-sm" colSpan={7}>
                       No notices found.
                     </td>
                   </tr>
@@ -310,7 +320,11 @@ const NoticesManager = () => {
                     </td>
                     <td className="px-3.5 py-3 text-sm">
                       <div className="font-medium">{n.title}</div>
-                      <div className="text-xs text-default-500">{n.created_by_username ? `By ${n.created_by_username}` : ''}</div>
+                      <div className="text-xs text-default-500">
+                        {n.description ? String(n.description).slice(0, 60) : ''}
+                        {n.description && n.created_by_username ? ' · ' : ''}
+                        {n.created_by_username ? `By ${n.created_by_username}` : ''}
+                      </div>
                     </td>
                     <td className="px-3.5 py-3 text-sm">
                       {n.audience === 'TEACHERS' ? 'All Teachers' : n.audience === 'PARENTS' ? 'All Parents' : 'All School'}
@@ -321,6 +335,15 @@ const NoticesManager = () => {
                         : 'All classes'}
                     </td>
                     <td className="px-3.5 py-3 text-sm">{n.is_active ? 'Yes' : 'No'}</td>
+                    <td className="px-3.5 py-3 text-sm">
+                      {n.pdf_file ? (
+                        <a className="text-primary hover:underline" href={n.pdf_file} target="_blank" rel="noreferrer">
+                          View
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="px-3.5 py-3 text-sm">
                       <div className="flex items-center gap-2">
                         <button
@@ -416,7 +439,7 @@ const NoticesManager = () => {
                       </div>
                     </div>
                     <select
-                      className="form-input"
+                      className="form-input h-auto min-h-[180px] py-2"
                       multiple
                       size={6}
                       value={form.school_classes}
@@ -439,6 +462,17 @@ const NoticesManager = () => {
                 <div>
                   <label className="inline-block mb-2 text-base font-medium">Title</label>
                   <input className="form-input" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} disabled={isSubmitting} />
+                </div>
+
+                <div>
+                  <label className="inline-block mb-2 text-base font-medium">Short Description (optional)</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={form.description}
+                    onChange={e => setForm(v => ({ ...v, description: e.target.value }))}
+                    disabled={isSubmitting}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -482,6 +516,18 @@ const NoticesManager = () => {
                       }}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="inline-block mb-2 text-base font-medium">{editing?.id ? 'Replace PDF (optional)' : 'PDF (optional)'}</label>
+                  <input
+                    className="form-input"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={e => setForm(v => ({ ...v, pdf_file: e.target.files?.[0] || null }))}
+                    disabled={isSubmitting}
+                  />
+                  <div className="mt-1 text-xs text-default-500">Upload a PDF attachment for this notice.</div>
                 </div>
               </div>
             </div>

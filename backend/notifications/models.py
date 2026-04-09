@@ -48,9 +48,11 @@ class Notice(models.Model):
     ]
 
     title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
     content_html = models.TextField(blank=True, default="")
     audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default=AUDIENCE_ALL_SCHOOL)
     school_classes = models.ManyToManyField(SchoolClass, blank=True, related_name="notices")
+    pdf_file = models.FileField(upload_to="notices/pdfs/", null=True, blank=True)
     is_pinned = models.BooleanField(default=False)
     pinned_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)

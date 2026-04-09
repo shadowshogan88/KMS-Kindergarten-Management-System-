@@ -4,6 +4,7 @@ from rest_framework import permissions, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 
 from users.permissions import IsAdmin, IsTeacher
 from users.rbac_permissions import HasPortalPermission
@@ -50,6 +51,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
     queryset = Notice.objects.select_related("created_by").prefetch_related("school_classes").all()
     serializer_class = NoticeSerializer
     rbac_path = "/portal/notices"
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get_permissions(self):
         # Base audience is anyone authenticated; CRUD controlled by RBAC and role (admin/teacher).
@@ -67,7 +69,7 @@ class NoticeViewSet(viewsets.ModelViewSet):
 
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            qs = qs.filter(Q(title__icontains=q) | Q(content_html__icontains=q))
+            qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q) | Q(content_html__icontains=q))
 
         audience = (self.request.query_params.get("audience") or "").strip().upper()
         if audience:
