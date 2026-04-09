@@ -51,6 +51,7 @@ class SpecialLiveClass(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     meet_link = models.URLField(help_text="Google Meet link", blank=True, default="")
+    meet_event_id = models.CharField(max_length=200, blank=True, default="")
     is_active = models.BooleanField(default=True)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_special_live_classes")

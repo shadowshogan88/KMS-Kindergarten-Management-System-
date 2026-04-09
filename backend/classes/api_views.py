@@ -1,5 +1,10 @@
+import datetime
+import uuid
+
+from django.conf import settings
 from django.utils.dateparse import parse_date
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
@@ -11,6 +16,7 @@ from students.models import Student
 
 from .models import Classroom, Enrollment, LiveClass, SpecialLiveClass
 from .serializers import ClassroomSerializer, EnrollmentSerializer, LiveClassSerializer, SpecialLiveClassSerializer
+from integrations.google import create_calendar_event_with_meet, delete_calendar_event
 
 
 class ClassroomViewSet(viewsets.ModelViewSet):
@@ -83,6 +89,7 @@ class SpecialLiveClassViewSet(viewsets.ModelViewSet):
     serializer_class = SpecialLiveClassSerializer
     rbac_path = "/portal/special-classes"
     pagination_class = None
+    rbac_action_map = {"generate_meet": "edit", "regenerate_meet": "edit"}
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
@@ -154,3 +161,59 @@ class SpecialLiveClassViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="generate-meet")
+    def generate_meet(self, request, pk=None):
+        obj: SpecialLiveClass = self.get_object()
+        if obj.meet_link:
+            return Response({"detail": "Meet link already exists."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return self._generate_meet_for_obj(obj, regenerate=False)
+        except Exception as e:
+            return Response({"detail": str(e) or "Failed to generate Meet link."}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path="regenerate-meet")
+    def regenerate_meet(self, request, pk=None):
+        obj: SpecialLiveClass = self.get_object()
+        try:
+            return self._generate_meet_for_obj(obj, regenerate=True)
+        except Exception as e:
+            return Response({"detail": str(e) or "Failed to regenerate Meet link."}, status=status.HTTP_400_BAD_REQUEST)
+
+    def _generate_meet_for_obj(self, obj: SpecialLiveClass, regenerate: bool):
+        tz = timezone.get_current_timezone()
+        start_dt = timezone.make_aware(datetime.datetime.combine(obj.date, obj.start_time), tz)
+        end_dt = timezone.make_aware(datetime.datetime.combine(obj.date, obj.end_time), tz)
+
+        payload = {
+            "summary": obj.title or "Special Class",
+            "description": f"Special Class: {obj.school_class.name}{f' ({obj.section})' if obj.section else ''}",
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": settings.TIME_ZONE},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": settings.TIME_ZONE},
+            "conferenceData": {
+                "createRequest": {
+                    "requestId": uuid.uuid4().hex,
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            },
+        }
+
+        if regenerate and obj.meet_event_id:
+            try:
+                delete_calendar_event(obj.meet_event_id)
+            except Exception:
+                pass
+            obj.meet_event_id = ""
+            obj.meet_link = ""
+
+        event = create_calendar_event_with_meet(payload)
+        meet_link = event.get("hangoutLink") or event.get("conferenceData", {}).get("entryPoints", [{}])[0].get("uri") or ""
+        event_id = event.get("id") or ""
+        if not meet_link:
+            raise Exception("Meet link not found in Google response.")
+
+        obj.meet_link = meet_link
+        obj.meet_event_id = event_id
+        obj.save(update_fields=["meet_link", "meet_event_id", "updated_at"])
+
+        return Response(SpecialLiveClassSerializer(obj).data)

@@ -282,6 +282,23 @@ const SpecialClassesCalendar = () => {
     }
   };
 
+  const generateMeet = async it => {
+    if (!it?.id) return;
+    if (!canEdit) return setFlash('No permission to generate Meet link.');
+    try {
+      const updated = await apiJson(`/special-live-classes/${it.id}/generate-meet/`, { method: 'POST' });
+      setItems(prev => prev.map(x => (x.id === updated.id ? updated : x)));
+      setFlash('Meet link generated successfully.');
+      setMonthDaysWithItems(prev => {
+        const next = new Set(Array.from(prev));
+        if (updated?.date) next.add(String(updated.date));
+        return next;
+      });
+    } catch (e) {
+      setFlash(e instanceof Error ? e.message : 'Failed to generate Meet link.');
+    }
+  };
+
   if (!canView) {
     return <div className="p-5 text-sm text-danger">You do not have permission to view special classes.</div>;
   }
@@ -394,7 +411,14 @@ const SpecialClassesCalendar = () => {
                           >
                             <LuExternalLink className="size-4" />
                           </a>
-                        ) : null}
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-default-500 text-sm">-</span>
+                            <button type="button" className="btn btn-sm bg-primary text-white" onClick={() => generateMeet(it)} disabled={!canEdit}>
+                              Generate
+                            </button>
+                          </div>
+                        )}
                         <button
                           type="button"
                           className="btn size-9 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
@@ -535,4 +559,3 @@ const SpecialClassesCalendar = () => {
 };
 
 export default SpecialClassesCalendar;
-

@@ -55,6 +55,7 @@ class SpecialLiveClassSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "meet_link",
+            "meet_event_id",
             "is_active",
             "created_by",
             "created_by_username",
