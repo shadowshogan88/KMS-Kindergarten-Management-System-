@@ -123,6 +123,8 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
 }
 
-# Allow embedding same-origin pages (needed for in-app PDF iframe viewer).
-# We keep it SAMEORIGIN so other sites cannot frame this app.
-X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "SAMEORIGIN")
+# Clickjacking / iframe embedding
+# - In local dev, Vite runs on a different origin (e.g. http://localhost:5173) so iframes for media/PDFs
+#   would be blocked by SAMEORIGIN. ALLOWALL removes the header in Django and enables in-app PDF iframes.
+# - In production, keep SAMEORIGIN unless you explicitly need cross-origin framing.
+X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "ALLOWALL" if DEBUG else "SAMEORIGIN")
