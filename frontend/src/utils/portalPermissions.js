@@ -32,9 +32,14 @@ export const resolvePermissionPath = pathname => {
 const hasAnyPermissions = () => Object.keys(getPortalPermissions()).length > 0;
 
 export const canPortal = (pathnameOrHref, action = 'view') => {
-  const normalized = normalizePath(pathnameOrHref);
+  let normalized = normalizePath(pathnameOrHref);
   if (normalized === '/portal/logout' || normalized.startsWith('/portal/logout/')) return true;
   if (normalized === '/portal/dashboard' || normalized.startsWith('/portal/dashboard/')) return true;
+
+  // Alias routes to share the same RBAC permission row.
+  if (normalized === '/portal/special-classes-setting' || normalized.startsWith('/portal/special-classes-setting/')) {
+    normalized = '/portal/special-classes';
+  }
 
   // If no portal role assigned, backend allows everything; keep frontend consistent.
   if (!hasAnyPermissions()) return true;

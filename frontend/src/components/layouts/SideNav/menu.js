@@ -74,9 +74,9 @@ export const menuItemsData = [{
     label: 'Live Class Settings',
     href: '/portal/live-class'
   }, {
-    key: 'Special Classes',
-    label: 'Special Classes',
-    href: '/portal/special-classes'
+    key: 'Special Classes Settings',
+    label: 'Special Classes Settings',
+    href: '/portal/special-classes-setting'
   }]
 }, {
   key: 'Educational',
