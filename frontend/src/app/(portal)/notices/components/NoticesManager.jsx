@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LuPin, LuPinOff, LuPlus, LuRefreshCcw, LuSearch, LuTrash2, LuUpload } from 'react-icons/lu';
+import { Link } from 'react-router';
+import { LuEye, LuPin, LuPinOff, LuPlus, LuRefreshCcw, LuSearch, LuTrash2, LuUpload } from 'react-icons/lu';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import {
   ClassicEditor,
@@ -337,9 +338,13 @@ const NoticesManager = () => {
                     <td className="px-3.5 py-3 text-sm">{n.is_active ? 'Yes' : 'No'}</td>
                     <td className="px-3.5 py-3 text-sm">
                       {n.pdf_file ? (
-                        <a className="text-primary hover:underline" href={n.pdf_file} target="_blank" rel="noreferrer">
-                          View
-                        </a>
+                        <Link
+                          className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                          title="View"
+                          to={`/portal/notices/${n.id}`}
+                        >
+                          <LuEye className="size-4" />
+                        </Link>
                       ) : (
                         '-'
                       )}
