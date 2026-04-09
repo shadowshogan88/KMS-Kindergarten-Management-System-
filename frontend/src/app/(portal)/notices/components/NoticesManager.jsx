@@ -9,7 +9,7 @@ import {
   Bold,
   Italic,
   Underline,
-  Link,
+  Link as LinkPlugin,
   List,
   Heading,
 } from 'ckeditor5';
@@ -512,7 +512,7 @@ const NoticesManager = () => {
                       data={form.content_html}
                       disabled={isSubmitting}
                       config={{
-                        plugins: [Essentials, Paragraph, Bold, Italic, Underline, Link, List, Heading],
+                        plugins: [Essentials, Paragraph, Bold, Italic, Underline, LinkPlugin, List, Heading],
                         toolbar: ['heading', '|', 'bold', 'italic', 'underline', '|', 'bulletedList', 'numberedList', '|', 'link', '|', 'undo', 'redo'],
                       }}
                       onChange={(_, editor) => {
