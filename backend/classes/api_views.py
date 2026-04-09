@@ -206,9 +206,9 @@ class SpecialLiveClassViewSet(viewsets.ModelViewSet):
             obj.meet_event_id = ""
             obj.meet_link = ""
 
-        event = create_calendar_event_with_meet(payload)
-        meet_link = event.get("hangoutLink") or event.get("conferenceData", {}).get("entryPoints", [{}])[0].get("uri") or ""
-        event_id = event.get("id") or ""
+        created = create_calendar_event_with_meet(payload)
+        meet_link = getattr(created, "meet_link", "") or ""
+        event_id = getattr(created, "event_id", "") or ""
         if not meet_link:
             raise Exception("Meet link not found in Google response.")
 
