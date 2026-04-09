@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.permissions import IsAdmin, IsParent, IsTeacher
+from users.rbac_permissions import HasPortalPermission
 
 from academics.models import SchoolClass
 from classes.models import Classroom
@@ -22,12 +23,13 @@ from routines.holiday_utils import get_holiday_for_date
 class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = AttendanceRecord.objects.select_related("classroom", "student", "student__parent").all()
     serializer_class = AttendanceRecordSerializer
+    rbac_path = "/portal/attendance"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -60,12 +62,14 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 class AcademicAttendanceViewSet(viewsets.ModelViewSet):
     queryset = AcademicAttendanceRecord.objects.select_related("school_class", "student", "student__parent", "student__user").all()
     serializer_class = AcademicAttendanceRecordSerializer
+    rbac_path = "/portal/attendance"
+    rbac_action_map = {"bulk": "create", "sheet": "view"}
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy", "bulk"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):

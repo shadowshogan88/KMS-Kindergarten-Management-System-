@@ -28,6 +28,23 @@ const AddClassTeacher = ({ classTeacher, onCreated, onUpdated, onRefresh }) => {
   const [teacherOpen, setTeacherOpen] = useState(false);
   const [teacherSearch, setTeacherSearch] = useState('');
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    setTeacherOpen(false);
+    if (!classTeacher) {
+      setValues(emptyValues);
+      setTeacherSearch('');
+    } else {
+      setValues({
+        classroom: classTeacher.classroom_key || '',
+        teacher: classTeacher.teacher ? String(classTeacher.teacher) : '',
+      });
+      setTeacherSearch(classTeacher.teacher_label || '');
+    }
+    closeClassTeacherOverlay();
+  };
+
   useEffect(() => {
     setError('');
     if (!classTeacher) {
@@ -135,7 +152,7 @@ const AddClassTeacher = ({ classTeacher, onCreated, onUpdated, onRefresh }) => {
       else await onCreated?.(payload);
 
       await onRefresh?.();
-      closeClassTeacherOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save class teacher.');
     } finally {
@@ -146,7 +163,7 @@ const AddClassTeacher = ({ classTeacher, onCreated, onUpdated, onRefresh }) => {
   return (
     <div
       id="class-teacher-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="class-teacher-edit-modal-label"
@@ -163,7 +180,7 @@ const AddClassTeacher = ({ classTeacher, onCreated, onUpdated, onRefresh }) => {
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#class-teacher-edit-modal"
-                onClick={closeClassTeacherOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -264,7 +281,7 @@ const AddClassTeacher = ({ classTeacher, onCreated, onUpdated, onRefresh }) => {
               type="button"
               className="btn bg-default-100 text-default-800"
               data-hs-overlay="#class-teacher-edit-modal"
-              onClick={closeClassTeacherOverlay}
+              onClick={handleClose}
               disabled={isSubmitting}
             >
               Cancel

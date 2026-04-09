@@ -53,6 +53,20 @@ const LiveClassSettings = () => {
   });
   const [didPickDate, setDidPickDate] = useState(false);
   const [overrideEditing, setOverrideEditing] = useState(null);
+  const [weeklyHoliday, setWeeklyHoliday] = useState(() => ({ days: [6], title: 'Weekly Holiday', is_active: true }));
+
+  const weeklyHolidayDays = useMemo(() => {
+    if (!weeklyHoliday?.is_active) return [];
+    const list = Array.isArray(weeklyHoliday?.days) ? weeklyHoliday.days : [];
+    const normalized = [];
+    for (const d of list) {
+      const n = Number(d);
+      if (Number.isFinite(n) && n >= 0 && n <= 6 && !normalized.includes(n)) normalized.push(n);
+    }
+    return normalized;
+  }, [weeklyHoliday]);
+  const isWeeklyHolidayDay = useMemo(() => weeklyHolidayDays.includes(Number(activeDay)), [weeklyHolidayDays, activeDay]);
+  const weeklyHolidayTitle = useMemo(() => (weeklyHoliday?.title ? String(weeklyHoliday.title) : 'Weekly Holiday'), [weeklyHoliday?.title]);
 
   useEffect(() => {
     if (!flash) return;
@@ -80,6 +94,25 @@ const LiveClassSettings = () => {
 
   useEffect(() => {
     loadStatus();
+  }, []);
+
+  useEffect(() => {
+    const canUseApi = Boolean(authStorage.getAccess());
+    if (!canUseApi) return;
+
+    let isMounted = true;
+    apiJson('/weekly-holidays/current/')
+      .then(data => {
+        if (!isMounted) return;
+        setWeeklyHoliday(data || null);
+      })
+      .catch(() => {
+        // Ignore: live class settings should still work even if weekly holidays fail to load.
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -231,9 +264,10 @@ const LiveClassSettings = () => {
   }, [calendarItems, didPickDate, schoolClass]);
 
   const dayRows = useMemo(() => {
+    if (isWeeklyHolidayDay) return [];
     const list = items.filter(rt => Number(rt?.day_of_week) === Number(activeDay));
     return list.sort((a, b) => String(a?.start_time || '').localeCompare(String(b?.start_time || '')));
-  }, [items, activeDay]);
+  }, [items, activeDay, isWeeklyHolidayDay]);
 
   const selectedDateRows = useMemo(() => {
     return calendarItems
@@ -390,7 +424,15 @@ const LiveClassSettings = () => {
                   <button
                     key={t.value}
                     type="button"
-                    className={`btn btn-sm ${Number(activeDay) === Number(t.value) ? 'bg-primary text-white' : 'bg-default-200 text-default-700 hover:bg-default-300'}`}
+                    className={`btn btn-sm ${
+                      weeklyHolidayDays.includes(Number(t.value))
+                        ? Number(activeDay) === Number(t.value)
+                          ? 'bg-warning/20 text-warning ring-1 ring-warning/30'
+                          : 'bg-warning/10 text-warning hover:bg-warning/20'
+                        : Number(activeDay) === Number(t.value)
+                          ? 'bg-primary text-white'
+                          : 'bg-default-200 text-default-700 hover:bg-default-300'
+                    }`}
                     onClick={() => setActiveDay(t.value)}
                   >
                     {t.label.toUpperCase()}
@@ -415,7 +457,15 @@ const LiveClassSettings = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-default-200">
-                        {!dayRows.length ? (
+                        {isWeeklyHolidayDay ? (
+                          <tr className="text-default-800 font-normal whitespace-nowrap">
+                            <td className="px-3.5 py-4 text-sm" colSpan={8}>
+                              <div className="rounded-md border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
+                                <div className="font-semibold">Break for Holiday: {weeklyHolidayTitle}</div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : !dayRows.length ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
                             <td className="px-3.5 py-4 text-sm" colSpan={8}>
                               No routine for {dayTabs.find(d => d.value === activeDay)?.label || 'this day'}.
@@ -423,93 +473,100 @@ const LiveClassSettings = () => {
                           </tr>
                         ) : null}
 
-                        {dayRows.map(row => (
-                          <tr
-                            key={row.id}
-                            className={[
-                              'text-default-800 font-normal whitespace-nowrap divide-x divide-default-200',
-                              row.routine_type === 'BREAK' ? 'bg-warning/10' : '',
-                            ].join(' ')}
-                          >
-                            <td className="px-3.5 py-3 text-sm">{row.subject_label || '-'}</td>
-                            <td className="px-3.5 py-3 text-sm">{row.subject_teacher_label || '-'}</td>
-                            <td className="px-3.5 py-3 text-sm">{fmtTime(row.start_time) || '-'}</td>
-                            <td className="px-3.5 py-3 text-sm">{fmtTime(row.end_time) || '-'}</td>
-                            <td
-                              className={[
-                                'px-3.5 py-3 text-sm',
-                                row.routine_type === 'BREAK' ? 'text-warning font-semibold' : '',
-                              ].join(' ')}
-                            >
-                              {row.routine_type === 'BREAK' ? 'Yes' : 'No'}
-                            </td>
-                            <td className="px-3.5 py-3 text-sm">{row.room || '-'}</td>
-                            <td className="px-3.5 py-3 text-sm">
-                              {!shouldHideLiveToggle(row) ? (
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(row.live_enabled)}
-                                  onChange={async e => {
-                                    try {
-                                      await setLiveEnabled(row, e.target.checked);
-                                    } catch (err) {
-                                      setFlash(err instanceof Error ? err.message : 'Failed to update.');
-                                    }
-                                  }}
-                                />
-                              ) : (
-                                <span className="text-default-500 text-sm">-</span>
-                              )}
-                            </td>
-                            <td className="px-3.5 py-3 text-sm">
-                              <div className="flex items-center gap-2">
-                                {row.meet_link ? (
-                                  <>
-                                    <a className="text-primary underline text-sm" href={row.meet_link} target="_blank" rel="noreferrer">
-                                      <LuLink2 className="inline size-4" /> Open
-                                    </a>
-                                    <button
-                                      type="button"
-                                      className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                      onClick={e => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setEditingMeet(row);
-                                        requestAnimationFrame(() => openOverlay('#meet-time-edit-modal'));
+                        {!isWeeklyHolidayDay
+                          ? dayRows.map(row => (
+                              <tr
+                                key={row.id}
+                                className={[
+                                  'text-default-800 font-normal whitespace-nowrap divide-x divide-default-200',
+                                  row.routine_type === 'BREAK' ? 'bg-warning/10' : '',
+                                ].join(' ')}
+                              >
+                                <td className="px-3.5 py-3 text-sm">{row.subject_label || '-'}</td>
+                                <td className="px-3.5 py-3 text-sm">{row.subject_teacher_label || '-'}</td>
+                                <td className="px-3.5 py-3 text-sm">{fmtTime(row.start_time) || '-'}</td>
+                                <td className="px-3.5 py-3 text-sm">{fmtTime(row.end_time) || '-'}</td>
+                                <td
+                                  className={[
+                                    'px-3.5 py-3 text-sm',
+                                    row.routine_type === 'BREAK' ? 'text-warning font-semibold' : '',
+                                  ].join(' ')}
+                                >
+                                  {row.routine_type === 'BREAK' ? 'Yes' : 'No'}
+                                </td>
+                                <td className="px-3.5 py-3 text-sm">{row.room || '-'}</td>
+                                <td className="px-3.5 py-3 text-sm">
+                                  {!shouldHideLiveToggle(row) ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(row.live_enabled)}
+                                      onChange={async e => {
+                                        try {
+                                          await setLiveEnabled(row, e.target.checked);
+                                        } catch (err) {
+                                          setFlash(err instanceof Error ? err.message : 'Failed to update.');
+                                        }
                                       }}
-                                      aria-haspopup="dialog"
-                                      aria-expanded="false"
-                                      aria-controls="meet-time-edit-modal"
-                                    >
-                                      <LuPencil className="size-4" />
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className="text-default-500 text-sm">-</span>
-                                )}
-                                {!shouldHideGenerate(row) ? (
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm bg-primary text-white"
-                                    disabled={!status.connected}
-                                    onClick={async () => {
-                                      try {
-                                        await generateMeet(row);
-                                        await loadStatus();
-                                        await load();
-                                        await loadCalendar(calendarMonth);
-                                      } catch (err) {
-                                        setFlash(err instanceof Error ? err.message : 'Failed to generate meet link.');
-                                      }
-                                    }}
-                                  >
-                                    Generate
-                                  </button>
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                    />
+                                  ) : (
+                                    <span className="text-default-500 text-sm">-</span>
+                                  )}
+                                </td>
+                                <td className="px-3.5 py-3 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    {row.meet_link ? (
+                                      <>
+                                        <a
+                                          className="text-primary underline text-sm"
+                                          href={row.meet_link}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          <LuLink2 className="inline size-4" /> Open
+                                        </a>
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                          onClick={e => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setEditingMeet(row);
+                                            requestAnimationFrame(() => openOverlay('#meet-time-edit-modal'));
+                                          }}
+                                          aria-haspopup="dialog"
+                                          aria-expanded="false"
+                                          aria-controls="meet-time-edit-modal"
+                                        >
+                                          <LuPencil className="size-4" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span className="text-default-500 text-sm">-</span>
+                                    )}
+                                    {!shouldHideGenerate(row) ? (
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm bg-primary text-white"
+                                        disabled={!status.connected}
+                                        onClick={async () => {
+                                          try {
+                                            await generateMeet(row);
+                                            await loadStatus();
+                                            await load();
+                                            await loadCalendar(calendarMonth);
+                                          } catch (err) {
+                                            setFlash(err instanceof Error ? err.message : 'Failed to generate meet link.');
+                                          }
+                                        }}
+                                      >
+                                        Generate
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          : null}
                       </tbody>
                     </table>
                   </div>

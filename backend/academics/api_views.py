@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 
 from users.permissions import IsAdmin
+from users.rbac_permissions import HasPortalPermission
 
 from .pagination import AcademicsPagination
 from .models import ClassTeacher, Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
@@ -27,12 +28,13 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/department"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -40,6 +42,7 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
     queryset = SchoolClass.objects.all()
     serializer_class = SchoolClassSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/class"
 
     @action(detail=False, methods=["get"], url_path="simple")
     def simple(self, request, *args, **kwargs):
@@ -76,9 +79,9 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def destroy(self, request, *args, **kwargs):
@@ -97,12 +100,13 @@ class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/section"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -110,6 +114,7 @@ class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/subject"
 
     @action(detail=False, methods=["get"], url_path="options")
     def options(self, request, *args, **kwargs):
@@ -142,9 +147,9 @@ class SubjectViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -152,12 +157,13 @@ class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.all()
     serializer_class = RoomSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/classroom"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -165,12 +171,13 @@ class DesignationViewSet(viewsets.ModelViewSet):
     queryset = Designation.objects.all()
     serializer_class = DesignationSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/designation"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -178,6 +185,7 @@ class SubjectTeacherViewSet(viewsets.ModelViewSet):
     queryset = SubjectTeacher.objects.all()
     serializer_class = SubjectTeacherSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/teachers"
 
     @action(detail=False, methods=["get"], url_path="options")
     def options(self, request, *args, **kwargs):
@@ -194,9 +202,9 @@ class SubjectTeacherViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
@@ -204,6 +212,7 @@ class ClassTeacherViewSet(viewsets.ModelViewSet):
     queryset = ClassTeacher.objects.all().select_related("school_class", "teacher")
     serializer_class = ClassTeacherSerializer
     pagination_class = AcademicsPagination
+    rbac_path = "/portal/class-teachers"
 
     def _handle_save_exception(self, e: Exception):
         if isinstance(e, DjangoValidationError):
@@ -249,7 +258,7 @@ class ClassTeacherViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()

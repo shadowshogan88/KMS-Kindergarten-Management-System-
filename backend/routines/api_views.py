@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.permissions import IsAdmin
+from users.rbac_permissions import HasPortalPermission
 
 from .models import AcademicClassRoutine, AcademicClassRoutineOverride, ClassRoutine
 from .serializers import (
@@ -27,12 +28,13 @@ from integrations.google import create_calendar_event_with_meet, delete_calendar
 class ClassRoutineViewSet(viewsets.ModelViewSet):
     queryset = ClassRoutine.objects.select_related("classroom", "teacher", "classroom__teacher").all()
     serializer_class = ClassRoutineSerializer
+    rbac_path = "/admin/routines"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -59,12 +61,14 @@ class AcademicClassRoutineViewSet(viewsets.ModelViewSet):
         "subject__subject_teacher",
     ).all()
     serializer_class = AcademicClassRoutineSerializer
+    rbac_paths = ["/portal/class-routine", "/portal/live-class"]
+    rbac_action_map = {"generate_meet": "edit", "regenerate_meet": "edit"}
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -473,29 +477,31 @@ class HolidayCalendarView(views.APIView):
 class HolidayViewSet(viewsets.ModelViewSet):
     queryset = Holiday.objects.all()
     serializer_class = HolidaySerializer
+    rbac_path = "/portal/holidays"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
 
 class WeeklyHolidayViewSet(viewsets.ModelViewSet):
     queryset = WeeklyHoliday.objects.filter(singleton_key=1)
     serializer_class = WeeklyHolidaySerializer
+    rbac_path = "/portal/weekly-holidays"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy", "current"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     @action(detail=False, methods=["get", "post"], url_path="current")
     def current(self, request):
-        obj, _ = WeeklyHoliday.objects.get_or_create(singleton_key=1, defaults={"days": [], "title": "Weekly Holiday"})
+        obj, _ = WeeklyHoliday.objects.get_or_create(singleton_key=1, defaults={"days": [6], "title": "Weekly Holiday"})
         if request.method == "GET":
             return Response(WeeklyHolidaySerializer(obj).data)
 

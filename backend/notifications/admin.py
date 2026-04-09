@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Announcement
+from .models import Announcement, Notice
 
 
 @admin.register(Announcement)
@@ -9,3 +9,9 @@ class AnnouncementAdmin(admin.ModelAdmin):
     list_filter = ("audience", "classroom")
     search_fields = ("title", "message")
 
+
+@admin.register(Notice)
+class NoticeAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_pinned", "is_active", "created_by", "created_at", "updated_at")
+    list_filter = ("is_pinned", "is_active")
+    search_fields = ("title", "content_html")

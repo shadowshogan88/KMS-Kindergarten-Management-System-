@@ -1,16 +1,15 @@
 # Kindergarten School Management System (Django + SQLite + React)
 
-Beginner-friendly, modular, and “professional” starter project for a kindergarten:
-- Role-based authentication: **Admin**, **Teacher**, **Parent**
-- Student profile: photo + medical info + parent details
-- Parent dashboard: daily activity + attendance + progress
-- Teacher dashboard: classroom overview (and API/admin tools for attendance + reports)
-- Live class (Google Meet): store + display meeting links
-- Daily activity report: food, sleep, mood, learning, teacher notes
-- Media upload: photos/videos attached to daily reports
-- Notifications: announcements/reminders
+A modular school/kindergarten management system with a Django REST API (JWT) and a React (Vite) portal UI.
 
-Note: The current `frontend/` is a Tailwick-based dashboard UI template. The `/portal/` page is wired to Django JWT login, but the rest of the dashboard pages are still UI-only (no live data fetch yet).
+## Features
+
+- Role-based authentication: **Admin**, **Teacher**, **Parent**
+- Students + parents
+- Classes/sections/subjects/teachers
+- Class routine (weekly timetable) + Live class settings
+- Holidays + Weekly holidays (break days)
+- Academic attendance (class-wise)
 
 ## Project structure
 
@@ -21,67 +20,42 @@ kindergarten_kms/
     requirements.txt
     .env.example
     kms/
-      settings.py
-      urls.py
-      api_views.py
       management/commands/seed_sample.py
-    users/           # auth + roles
-      models.py
-      views.py
-      urls.py
-    students/        # student + parent profile
-      models.py
-      views.py
-      urls.py
-    classes/         # classrooms + enrollment + live class (meet link)
-      models.py
-      views.py
-      urls.py
-    attendance/      # attendance per day
-      models.py
-      views.py
-      urls.py
-    reports/         # daily activity + media + progress notes
-      models.py
-      views.py
-      urls.py
-    notifications/   # announcements/reminders
-      models.py
-      views.py
-      urls.py
+    users/               # auth + roles
+    students/            # student + parent profile
+    academics/           # classes/sections/subjects/teachers (portal)
+    routines/            # class routine + holidays + weekly holidays + live calendar
+    attendance/          # academic attendance
+    integrations/google/ # Google Calendar/Meet (optional)
   frontend/
-    # Tailwick dashboard (current UI)
     package.json
     src/
-      ...
+      routes/Routes.jsx  # portal routes
   frontend_legacy_2026-04-06/
-    # Previous React app (kept as backup)
-    package.json
-    src/
-      ...
+    # backup
 ```
 
-## 1) Run backend (Django) on Windows CMD
+## Run locally (Windows)
 
-Open CMD:
+### 1) Backend (Django)
+
+From CMD:
 
 ```cmd
-cd /d "C:\Users\SAFI ENTERPRISE\Desktop\dipti\school\kindergarten_kms\backend"
+cd /d "<repo>\backend"
 python -m venv .venv
 .venv\Scripts\activate.bat
 pip install -r requirements.txt
 ```
 
-Default settings module is `kms.settings.dev` (good for local development).
-
-Create database + tables:
+Create DB + tables:
 
 ```cmd
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-Create sample data:
+Optional: seed sample data:
 
 ```cmd
 python manage.py seed_sample
@@ -97,55 +71,56 @@ Backend URLs:
 - API base: `http://127.0.0.1:8000/api/v1/`
 - Admin: `http://127.0.0.1:8000/admin/`
 
-Sample logins:
+Sample logins (after `seed_sample`):
 - `admin` / `admin1234`
 - `teacher` / `teacher1234`
 - `parent` / `parent1234`
 
-## 2) Run frontend (React)
+### 2) Frontend (React + Vite)
 
-Open another PowerShell (recommended on this machine):
+From PowerShell (recommended on machines where `npm.ps1` is blocked by ExecutionPolicy):
 
 ```powershell
-cd "C:\Users\SAFI ENTERPRISE\Desktop\dipti\school\kindergarten_kms\frontend"
+cd "<repo>\frontend"
 npm.cmd install
 npm.cmd run dev
 ```
 
-If you prefer CMD:
+From CMD:
 
 ```cmd
-cd /d "C:\Users\SAFI ENTERPRISE\Desktop\dipti\school\kindergarten_kms\frontend"
+cd /d "<repo>\frontend"
 npm install
 npm run dev
 ```
 
-Frontend URL:
-- `http://localhost:5173/`
-- Portal login page: `http://localhost:5173/portal/`
+Frontend URLs:
+- Home: `http://localhost:5173/`
+- Portal: `http://localhost:5173/portal/`
 
-When you connect the UI to Django later, you can add `kindergarten_kms/frontend/.env`:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000/api
-```
-
-For this project the recommended value is:
+Create `frontend/.env` (optional) to point frontend to the API:
 
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
-## Google Meet integration (simple + secure)
+## Portal pages (React)
 
-This project **stores** meeting links (does not auto-generate them).
+Main portal routes are defined in `frontend/src/routes/Routes.jsx`.
 
-Recommended workflow:
-1. Create a Google Meet link (manual Meet or Google Calendar event)
-2. Put it into `classes.LiveClass.meet_link` (via Django Admin or API)
-3. Parents/Teachers open “Live Class” page and click “Join Google Meet”
+- `/portal/teachers`
+- `/portal/class-teachers`
+- `/portal/class-routine`
+- `/portal/live-class`
+- `/portal/holidays`
+- `/portal/weekly-holidays`
+- `/portal/attendance`
+- `/portal/attendance-report`
 
-If you want **auto-create Meet links**, the usual approach is Google Calendar API + OAuth (can be added next).
+## Routines + Holidays rules
+
+- Weekly holiday configuration is stored in `WeeklyHoliday` (day indices: `0=Saturday ... 6=Friday`).
+- If a day is a weekly holiday, routines are **not allowed** to be created/updated for that day, and the UI shows **“Break for Holiday”**.
 
 ## Key API endpoints (JWT)
 
@@ -154,50 +129,32 @@ Auth:
 - `POST /api/v1/auth/token/refresh/`
 - `GET /api/v1/auth/me/`
 
-Dashboard:
-- `GET /api/v1/dashboard/`
+Routines:
+- `GET /api/v1/academic-routines/?class=<id>&section=<A>`
+- `POST /api/v1/academic-routines/` (admin)
+- `PATCH /api/v1/academic-routines/:id/` (admin)
+- `DELETE /api/v1/academic-routines/:id/` (admin)
 
-Students:
-- `GET /api/v1/students/` (parents only see their children)
+Holidays:
+- `GET /api/v1/holidays/`
+- `GET /api/v1/weekly-holidays/current/`
+- `POST /api/v1/weekly-holidays/current/` (admin)
+- `GET /api/v1/holiday-calendar/?start=YYYY-MM-DD&end=YYYY-MM-DD`
 
-Classes:
-- `GET /api/v1/classrooms/`
-- `POST /api/v1/classrooms/:id/enroll/` (admin/teacher)
-- `GET /api/v1/live-classes/`
+## Google Meet / Calendar integration (optional)
 
-Attendance:
-- `GET /api/v1/attendance/?student=<id>`
-- `POST /api/v1/attendance/` (teacher/admin)
+This project supports storing and displaying meeting links. If you enable Google OAuth + Calendar API,
+the backend can create Calendar events with Google Meet links.
 
-Daily activity + media:
-- `GET /api/v1/daily-reports/?student=<id>`
-- `POST /api/v1/daily-reports/` (teacher/admin)
-- `POST /api/v1/daily-reports/:id/upload-media/` (multipart file) (teacher/admin)
+Configure via `backend/.env` (copy from `backend/.env.example`).
 
-Notifications:
-- `GET /api/v1/announcements/`
-- `POST /api/v1/announcements/` (teacher/admin)
+## Update README on GitHub
 
-## Admin Routine Management (Main Feature)
+After editing `README.md`, push to GitHub:
 
-- UI: `http://localhost:5173/admin/dashboard` (template-like dashboard)
-- Timetable CRUD: `http://localhost:5173/admin/routines` (login as `admin`)
-- API:
-  - `GET /api/v1/routines/?classroom=<id>`
-  - `POST /api/v1/routines/` (admin only)
-  - `PATCH /api/v1/routines/:id/` (admin only)
-  - `DELETE /api/v1/routines/:id/` (admin only)
-
-## Production notes (best practices)
-
-- Use `kms.settings.prod` by setting an env var before running:
-
-```cmd
-set DJANGO_SETTINGS_MODULE=kms.settings.prod
-python manage.py runserver
+```powershell
+git status
+git add README.md
+git commit -m "Update README"
+git push
 ```
-
-- In production, set:
-  - `DJANGO_SECRET_KEY`
-  - `DJANGO_ALLOWED_HOSTS`
-  - `CORS_ALLOWED_ORIGINS` (or serve React from same domain)

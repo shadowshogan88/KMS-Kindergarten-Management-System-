@@ -62,3 +62,37 @@ export const apiJson = async (path, { method = 'GET', body, headers } = {}, _ret
 
   throw new Error(parseErrorMessage(data, res));
 };
+
+export const apiForm = async (path, { method = 'POST', formData, headers } = {}, _retried = false) => {
+  const token = authStorage.getAccess();
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(headers || {}),
+    },
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (res.ok) return data;
+
+  if (!_retried && shouldTryRefresh(res, data)) {
+    const refresh = authStorage.getRefresh();
+    if (refresh) {
+      try {
+        const next = await refreshAccess(refresh);
+        authStorage.setAccess(next.access);
+        return apiForm(path, { method, formData, headers }, true);
+      } catch {
+        authStorage.clear();
+        throw new Error('Session expired. Please sign in again.');
+      }
+    } else {
+      authStorage.clear();
+      throw new Error('Session expired. Please sign in again.');
+    }
+  }
+
+  throw new Error(parseErrorMessage(data, res));
+};

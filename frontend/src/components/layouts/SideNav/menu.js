@@ -71,6 +71,28 @@ export const menuItemsData = [{
     href: '/portal/live-class'
   }]
 }, {
+  key: 'Educational',
+  label: 'Educational',
+  icon: LuFileText,
+  children: [{
+    key: 'Syllabus',
+    label: 'Syllabus',
+    href: '/portal/syllabus'
+  }]
+}, {
+  key: 'Settings',
+  label: 'Settings',
+  icon: LuShieldCheck,
+  children: [{
+    key: 'Notices',
+    label: 'Notices',
+    href: '/portal/notices'
+  }, {
+    key: 'Roles',
+    label: 'Roles',
+    href: '/portal/roles'
+  }]
+}, {
   key: 'Apps',
   label: 'Apps',
   isTitle: true

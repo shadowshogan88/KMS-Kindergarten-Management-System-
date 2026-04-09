@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.permissions import IsAdmin, IsParent, IsTeacher
+from users.rbac_permissions import HasPortalPermission
 
 from .models import ParentProfile, Student
 from .serializers import ParentProfileSerializer, StudentSerializer
@@ -11,12 +12,13 @@ from .serializers import ParentProfileSerializer, StudentSerializer
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.select_related("parent").all().order_by("first_name", "last_name")
     serializer_class = StudentSerializer
+    rbac_path = "/portal/students"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -35,9 +37,9 @@ class ParentProfileViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in {"list", "retrieve"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated, IsParent | IsAdmin]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsParent | IsAdmin]
         return super().get_permissions()
 
     def get_queryset(self):

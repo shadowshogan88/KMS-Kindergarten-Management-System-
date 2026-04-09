@@ -17,6 +17,19 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    if (!room) setValues(emptyValues);
+    else {
+      setValues({
+        room_no: room.room_no || '',
+        capacity: room.capacity === 0 ? '0' : String(room.capacity || ''),
+      });
+    }
+    closeClassroomOverlay();
+  };
+
   useEffect(() => {
     setError('');
     if (!room) {
@@ -50,7 +63,7 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
       else await onCreated?.(payload);
 
       await onRefresh?.();
-      closeClassroomOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save classroom.');
     } finally {
@@ -61,7 +74,7 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
   return (
     <div
       id="classroom-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="classroom-edit-modal-label"
@@ -78,7 +91,7 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#classroom-edit-modal"
-                onClick={closeClassroomOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -131,7 +144,7 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
             <button
               data-hs-overlay="#classroom-edit-modal"
-              onClick={closeClassroomOverlay}
+              onClick={handleClose}
               className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
               aria-label="Close"
               disabled={isSubmitting}
@@ -150,4 +163,3 @@ const AddClassroom = ({ room, onCreated, onUpdated, onRefresh }) => {
 };
 
 export default AddClassroom;
-

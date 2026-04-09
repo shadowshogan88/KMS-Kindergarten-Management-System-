@@ -15,6 +15,19 @@ const AddClass = ({ schoolClass, onCreated, onUpdated, onRefresh }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    if (!schoolClass) {
+      setName('');
+      setSections([]);
+    } else {
+      setName(schoolClass.name || '');
+      setSections(Array.isArray(schoolClass.sections) ? schoolClass.sections : []);
+    }
+    closeClassOverlay();
+  };
+
   useEffect(() => {
     let isMounted = true;
     apiJson('/sections/')
@@ -62,10 +75,8 @@ const AddClass = ({ schoolClass, onCreated, onUpdated, onRefresh }) => {
       if (isEdit) await onUpdated?.(schoolClass, payload);
       else await onCreated?.(payload);
 
-      setName('');
-      setSections([]);
       await onRefresh?.();
-      closeClassOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to add class.');
     } finally {
@@ -76,7 +87,7 @@ const AddClass = ({ schoolClass, onCreated, onUpdated, onRefresh }) => {
   return (
     <div
       id="class-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="class-edit-modal-label"
@@ -88,7 +99,14 @@ const AddClass = ({ schoolClass, onCreated, onUpdated, onRefresh }) => {
               {isEdit ? 'Edit Class' : 'Add Class'}
             </h3>
             <div>
-              <button type="button" className="size-5 text-default-800" aria-label="Close" data-hs-overlay="#class-edit-modal" disabled={isSubmitting}>
+              <button
+                type="button"
+                className="size-5 text-default-800"
+                aria-label="Close"
+                data-hs-overlay="#class-edit-modal"
+                onClick={handleClose}
+                disabled={isSubmitting}
+              >
                 <span className="sr-only">Close</span>
                 <LuX className="size-5" />
               </button>
@@ -139,7 +157,13 @@ const AddClass = ({ schoolClass, onCreated, onUpdated, onRefresh }) => {
           </div>
 
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
-            <button data-hs-overlay="#class-edit-modal" className="bg-transparent text-danger btn border-0 hover:bg-danger/10" aria-label="Close" disabled={isSubmitting}>
+            <button
+              data-hs-overlay="#class-edit-modal"
+              onClick={handleClose}
+              className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
+              aria-label="Close"
+              disabled={isSubmitting}
+            >
               Cancel
             </button>
 

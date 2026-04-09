@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "reports",
     "notifications",
     "routines",
+    "syllabus",
     "integrations",
 ]
 
@@ -121,3 +122,7 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
 }
+
+# Allow embedding same-origin pages (needed for in-app PDF iframe viewer).
+# We keep it SAMEORIGIN so other sites cannot frame this app.
+X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "SAMEORIGIN")

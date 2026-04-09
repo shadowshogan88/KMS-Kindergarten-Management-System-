@@ -1,6 +1,41 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LuChevronRight } from 'react-icons/lu';
 import { menuItemsData } from './menu';
+import { canPortal } from '@/utils/portalPermissions';
+
+const isAllowedItem = item => {
+  if (item?.href && String(item.href).startsWith('/portal/')) return canPortal(item.href, 'view');
+  return true;
+};
+
+const filterMenu = items => {
+  const out = [];
+  for (const it of items || []) {
+    if (it.isTitle) {
+      out.push(it);
+      continue;
+    }
+    if (it.children?.length) {
+      const kids = filterMenu(it.children).filter(c => !c.isTitle);
+      if (kids.length) out.push({ ...it, children: kids });
+      continue;
+    }
+    if (isAllowedItem(it)) out.push(it);
+  }
+
+  // Remove leading/trailing titles and duplicate titles.
+  const cleaned = [];
+  for (const it of out) {
+    if (it.isTitle) {
+      if (!cleaned.length) continue;
+      const prev = cleaned[cleaned.length - 1];
+      if (prev?.isTitle) continue;
+    }
+    cleaned.push(it);
+  }
+  while (cleaned.length && cleaned[cleaned.length - 1]?.isTitle) cleaned.pop();
+  return cleaned;
+};
 const isItemActive = (item, pathname) => {
   if (item.href && pathname === item.href) return true;
   if (item.children) {
@@ -51,7 +86,7 @@ const MenuItem = ({
 };
 const AppMenu = () => {
   return <ul className="side-nav p-3 hs-accordion-group">
-      {menuItemsData.map(item => item.isTitle ? <li className="menu-title" key={item.key}>
+      {filterMenu(menuItemsData).map(item => item.isTitle ? <li className="menu-title" key={item.key}>
             <span>{item.label}</span>
           </li> : item.children ? <MenuItemWithChildren key={item.key} item={item} /> : <MenuItem key={item.key} item={item} />)}
     </ul>;

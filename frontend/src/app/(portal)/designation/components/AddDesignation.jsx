@@ -15,6 +15,14 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    if (!designation) setValues(emptyValues);
+    else setValues({ title: designation.title || '' });
+    closeDesignationOverlay();
+  };
+
   useEffect(() => {
     setError('');
     if (!designation) {
@@ -42,7 +50,7 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
       else await onCreated?.(payload);
 
       await onRefresh?.();
-      closeDesignationOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save designation.');
     } finally {
@@ -53,7 +61,7 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
   return (
     <div
       id="designation-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="designation-edit-modal-label"
@@ -70,7 +78,7 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#designation-edit-modal"
-                onClick={closeDesignationOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -107,7 +115,7 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
             <button
               data-hs-overlay="#designation-edit-modal"
-              onClick={closeDesignationOverlay}
+              onClick={handleClose}
               className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
               aria-label="Close"
               disabled={isSubmitting}
@@ -126,4 +134,3 @@ const AddDesignation = ({ designation, onCreated, onUpdated, onRefresh }) => {
 };
 
 export default AddDesignation;
-

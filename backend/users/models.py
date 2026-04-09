@@ -17,6 +17,52 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_PARENT)
     phone = models.CharField(max_length=30, blank=True, default="")
+    portal_role = models.ForeignKey(
+        "users.PortalRole",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text="Optional RBAC role for portal sidebar + CRUD permissions.",
+    )
 
     def __str__(self) -> str:
         return f"{self.username} ({self.role})"
+
+
+class PortalRole(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PortalRolePermission(models.Model):
+    """
+    Permissions for a single sidebar link/path.
+    `path` should match the frontend route href (example: "/portal/class-routine").
+    """
+
+    role = models.ForeignKey(PortalRole, on_delete=models.CASCADE, related_name="permissions")
+    path = models.CharField(max_length=200)
+    can_view = models.BooleanField(default=False)
+    can_create = models.BooleanField(default=False)
+    can_edit = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["path"]
+        constraints = [
+            models.UniqueConstraint(fields=["role", "path"], name="uniq_portal_role_path"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.role}: {self.path}"

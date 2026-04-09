@@ -21,6 +21,25 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
   const [error, setError] = useState('');
   const [createdCreds, setCreatedCreds] = useState(null);
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    setCreatedCreds(null);
+    if (!subjectTeacher) setValues(emptyValues);
+    else {
+      setValues({
+        name: subjectTeacher.name || '',
+        email: subjectTeacher.email || subjectTeacher.user_email || '',
+        phone: subjectTeacher.phone || '',
+        teacher_code: subjectTeacher.teacher_code || '',
+        create_user: false,
+        username: '',
+        password: '',
+      });
+    }
+    closeTeacherOverlay();
+  };
+
   useEffect(() => {
     setError('');
     setCreatedCreds(null);
@@ -105,7 +124,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
       }
 
       await onRefresh?.();
-      closeTeacherOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save teacher.');
     } finally {
@@ -122,7 +141,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
   return (
     <div
       id="subject-teacher-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="subject-teacher-edit-modal-label"
@@ -139,7 +158,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#subject-teacher-edit-modal"
-                onClick={closeTeacherOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -308,7 +327,7 @@ const AddSubjectTeacher = ({ subjectTeacher, onCreated, onUpdated, onRefresh }) 
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
             <button
               data-hs-overlay="#subject-teacher-edit-modal"
-              onClick={closeTeacherOverlay}
+              onClick={handleClose}
               className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
               aria-label="Close"
               disabled={isSubmitting}

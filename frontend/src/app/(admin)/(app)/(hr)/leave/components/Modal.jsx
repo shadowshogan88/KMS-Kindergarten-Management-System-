@@ -1,7 +1,7 @@
 import deleteImg from '@/assets/images/delete.png';
 import { LuX } from 'react-icons/lu';
 const Modal = () => {
-  return <div id="hr-leave-delete-modal" className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none" role="dialog" tabIndex={-1} aria-labelledby="hr-leave-delete-modal-label">
+  return <div id="hr-leave-delete-modal" className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto" role="dialog" tabIndex={-1} aria-labelledby="hr-leave-delete-modal-label">
       <div className="hs-overlay-animation-target hs-overlay-open:scale-100 hs-overlay-open:opacity-100 scale-95 opacity-0 ease-in-out transition-all duration-200 md:w-sm m-3 mx-auto min-h-[calc(100%-56px)] flex items-center">
         <div className="w-full flex flex-col card shadow-2xs border border-default-200 rounded-xl pointer-events-auto px-6 py-8 relative">
           <div className="absolute top-3 end-3">

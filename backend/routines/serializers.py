@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .holiday_utils import DAY_TABS, get_weekly_holiday_for_day
 from .models import AcademicClassRoutine, AcademicClassRoutineOverride, ClassRoutine, Holiday, WeeklyHoliday
 
 
@@ -36,8 +37,10 @@ class ClassRoutineSerializer(serializers.ModelSerializer):
         end = attrs.get("end_time", getattr(self.instance, "end_time", None))
         classroom = attrs.get("classroom", getattr(self.instance, "classroom", None))
 
-        if day == ClassRoutine.DAY_FRI:
-            raise serializers.ValidationError({"day_of_week": "Friday is a break day. No routines allowed."})
+        weekly = get_weekly_holiday_for_day(day)
+        if weekly:
+            label = next((t["label"] for t in DAY_TABS if int(t["value"]) == int(day)), "This day")
+            raise serializers.ValidationError({"day_of_week": f"{label} is a weekly holiday. No routines allowed."})
 
         if start and end and start >= end:
             raise serializers.ValidationError({"end_time": "end_time must be after start_time."})
@@ -98,8 +101,10 @@ class AcademicClassRoutineSerializer(serializers.ModelSerializer):
         title = attrs.get("title", getattr(self.instance, "title", "")) or ""
         subject = attrs.get("subject", getattr(self.instance, "subject", None))
 
-        if day == AcademicClassRoutine.DAY_FRI:
-            raise serializers.ValidationError({"day_of_week": "Friday is a break day. No routines allowed."})
+        weekly = get_weekly_holiday_for_day(day)
+        if weekly:
+            label = next((t["label"] for t in DAY_TABS if int(t["value"]) == int(day)), "This day")
+            raise serializers.ValidationError({"day_of_week": f"{label} is a weekly holiday. No routines allowed."})
 
         if start and end and start >= end:
             raise serializers.ValidationError({"end_time": "end_time must be after start_time."})

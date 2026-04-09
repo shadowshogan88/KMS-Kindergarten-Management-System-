@@ -26,7 +26,7 @@ const DeleteModal = ({ classTeacher, onConfirm }) => {
   return (
     <div
       id="class-teacher-delete-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="class-teacher-delete-modal-label"
@@ -84,4 +84,3 @@ const DeleteModal = ({ classTeacher, onConfirm }) => {
 };
 
 export default DeleteModal;
-

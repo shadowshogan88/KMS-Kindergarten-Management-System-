@@ -30,6 +30,26 @@ const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, o
   const [teacherOpen, setTeacherOpen] = useState(false);
   const [teacherSearch, setTeacherSearch] = useState('');
 
+  const handleClose = () => {
+    if (isSubmitting) return;
+    setError('');
+    setTeacherOpen(false);
+    if (!subject) {
+      setValues({ ...emptyValues, classroom: defaultClassroomKey || '' });
+      setTeacherSearch('');
+    } else {
+      setValues({
+        classroom: subject.classroom_key || '',
+        subject_teacher: subject.subject_teacher ? String(subject.subject_teacher) : '',
+        name: subject.name || '',
+        code: subject.code || '',
+        subject_type: subject.subject_type || TYPE_THEORY,
+      });
+      setTeacherSearch(subject.subject_teacher_label || '');
+    }
+    closeSubjectOverlay();
+  };
+
   useEffect(() => {
     setError('');
     if (!subject) {
@@ -145,7 +165,7 @@ const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, o
       else await onCreated?.(payload);
 
       await onRefresh?.();
-      closeSubjectOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save subject.');
     } finally {
@@ -156,7 +176,7 @@ const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, o
   return (
     <div
       id="subject-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
       role="dialog"
       tabIndex={-1}
       aria-labelledby="subject-edit-modal-label"
@@ -173,7 +193,7 @@ const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, o
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#subject-edit-modal"
-                onClick={closeSubjectOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -327,7 +347,7 @@ const AddSubject = ({ subject, defaultClassroomKey = '', onCreated, onUpdated, o
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
             <button
               data-hs-overlay="#subject-edit-modal"
-              onClick={closeSubjectOverlay}
+              onClick={handleClose}
               className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
               aria-label="Close"
               disabled={isSubmitting}

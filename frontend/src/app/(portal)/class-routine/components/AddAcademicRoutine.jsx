@@ -22,7 +22,7 @@ const emptyValues = {
 
 const fmtTime = t => (t ? String(t).slice(0, 5) : '');
 
-const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = '1', onSaved }) => {
+const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = '1', blockedDays = [], blockedTitle = 'Weekly Holiday', onSaved }) => {
   const isEdit = useMemo(() => Boolean(routine?.id), [routine?.id]);
   const [values, setValues] = useState(emptyValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,9 +41,10 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
   const [teacherSearch, setTeacherSearch] = useState('');
   const [teacherTouched, setTeacherTouched] = useState(false);
 
-  useEffect(() => {
+  const resetForm = () => {
     setError('');
     setTeacherTouched(false);
+
     if (!routine) {
       setValues({ ...emptyValues, day_of_week: String(defaultDayOfWeek) });
       setSubjectSearch('');
@@ -64,6 +65,16 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
 
     setSubjectSearch(routine.subject_label || '');
     setTeacherSearch(routine.subject_teacher_label || '');
+  };
+
+  const handleClose = () => {
+    if (isSubmitting) return;
+    resetForm();
+    closeRoutineOverlay();
+  };
+
+  useEffect(() => {
+    resetForm();
   }, [routine, defaultDayOfWeek]);
 
   // Load teachers once (used for override).
@@ -166,6 +177,10 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
       setError('Day is required.');
       return;
     }
+    if (blockedDays.includes(Number(values.day_of_week))) {
+      setError(`Break for Holiday: ${blockedTitle}`);
+      return;
+    }
     if (!values.start_time) {
       setError('Start time is required.');
       return;
@@ -218,7 +233,7 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
         await onSaved?.('Routine added successfully.');
       }
 
-      closeRoutineOverlay();
+      handleClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save routine.');
     } finally {
@@ -229,7 +244,8 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
   return (
     <div
       id="academic-routine-edit-modal"
-      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none"
+      className="hs-overlay hidden size-full fixed top-0 start-0 z-80 overflow-x-hidden overflow-y-auto pointer-events-none hs-overlay-open:pointer-events-auto"
+      style={{ '--close-when-click-inside': 'false' }}
       role="dialog"
       tabIndex={-1}
       aria-labelledby="academic-routine-edit-modal-label"
@@ -246,7 +262,7 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
                 className="size-5 text-default-800"
                 aria-label="Close"
                 data-hs-overlay="#academic-routine-edit-modal"
-                onClick={closeRoutineOverlay}
+                onClick={handleClose}
                 disabled={isSubmitting}
               >
                 <span className="sr-only">Close</span>
@@ -431,13 +447,27 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
                     onChange={e => setValues(v => ({ ...v, day_of_week: e.target.value }))}
                     disabled={isSubmitting}
                   >
-                    <option value="0">Saturday</option>
-                    <option value="1">Sunday</option>
-                    <option value="2">Monday</option>
-                    <option value="3">Tuesday</option>
-                    <option value="4">Wednesday</option>
-                    <option value="5">Thursday</option>
-                    <option value="6">Friday</option>
+                    <option value="0" disabled={blockedDays.includes(0)}>
+                      Saturday
+                    </option>
+                    <option value="1" disabled={blockedDays.includes(1)}>
+                      Sunday
+                    </option>
+                    <option value="2" disabled={blockedDays.includes(2)}>
+                      Monday
+                    </option>
+                    <option value="3" disabled={blockedDays.includes(3)}>
+                      Tuesday
+                    </option>
+                    <option value="4" disabled={blockedDays.includes(4)}>
+                      Wednesday
+                    </option>
+                    <option value="5" disabled={blockedDays.includes(5)}>
+                      Thursday
+                    </option>
+                    <option value="6" disabled={blockedDays.includes(6)}>
+                      Friday
+                    </option>
                   </select>
                 </div>
                 <div>
@@ -488,7 +518,7 @@ const AddAcademicRoutine = ({ routine, schoolClass, section, defaultDayOfWeek = 
           <div className="flex justify-end items-center gap-x-2 py-3 px-4">
             <button
               data-hs-overlay="#academic-routine-edit-modal"
-              onClick={closeRoutineOverlay}
+              onClick={handleClose}
               className="bg-transparent text-danger btn border-0 hover:bg-danger/10"
               aria-label="Close"
               disabled={isSubmitting}

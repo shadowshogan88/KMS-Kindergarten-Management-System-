@@ -68,6 +68,11 @@ const PortalHolidays = lazy(() => import('@/app/(portal)/holidays'));
 const PortalWeeklyHolidays = lazy(() => import('@/app/(portal)/weekly-holidays'));
 const PortalClassRoutine = lazy(() => import('@/app/(portal)/class-routine'));
 const PortalLiveClass = lazy(() => import('@/app/(portal)/live-class'));
+const PortalNotices = lazy(() => import('@/app/(portal)/notices'));
+const PortalRoles = lazy(() => import('@/app/(portal)/roles'));
+const PortalRolePermissions = lazy(() => import('@/app/(portal)/roles/permissions'));
+const PortalSyllabus = lazy(() => import('@/app/(portal)/syllabus'));
+const PortalSyllabusDetail = lazy(() => import('@/app/(portal)/syllabus/detail'));
 const PortalStudents = lazy(() => import('@/app/(portal)/students'));
 const PortalAcademicAttendance = lazy(() => import('@/app/(portal)/attendance'));
 const PortalAcademicAttendanceReport = lazy(() => import('@/app/(portal)/attendance-report'));
@@ -230,6 +235,26 @@ export const layoutsRoutes = [{
   name: 'PortalWeeklyHolidays',
   element: <PortalWeeklyHolidays />
 }, {
+  path: '/portal/notices',
+  name: 'PortalNotices',
+  element: <PortalNotices />
+}, {
+  path: '/portal/roles',
+  name: 'PortalRoles',
+  element: <PortalRoles />
+}, {
+  path: '/portal/roles/:id/permissions',
+  name: 'PortalRolePermissions',
+  element: <PortalRolePermissions />
+}, {
+  path: '/portal/syllabus',
+  name: 'PortalSyllabus',
+  element: <PortalSyllabus />
+}, {
+  path: '/portal/syllabus/:id',
+  name: 'PortalSyllabusDetail',
+  element: <PortalSyllabusDetail />
+}, {
   path: '/portal/class-routine',
   name: 'PortalClassRoutine',
   element: <PortalClassRoutine />
@@ -289,6 +314,10 @@ export const layoutsRoutes = [{
   path: '/weekly-holidays',
   name: 'WeeklyHolidaysRedirect',
   element: <Navigate to="/portal/weekly-holidays" replace />
+}, {
+  path: '/syllabus',
+  name: 'SyllabusRedirect',
+  element: <Navigate to="/portal/syllabus" replace />
 }, {
   path: '/class-routine',
   name: 'ClassRoutineRedirect',

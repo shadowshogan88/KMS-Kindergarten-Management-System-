@@ -10,5 +10,12 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src')
     }
-  }
+  },
+  server: {
+    proxy: {
+      // Allow embedding PDFs in iframes from the Vite origin by proxying Django media/static.
+      '/media': 'http://127.0.0.1:8000',
+      '/static': 'http://127.0.0.1:8000',
+    },
+  },
 });

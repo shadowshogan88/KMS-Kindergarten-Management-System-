@@ -29,3 +29,24 @@ class Announcement(models.Model):
     def __str__(self) -> str:
         return self.title
 
+
+class Notice(models.Model):
+    """
+    Rich-text notice (HTML) for portal.
+    Supports pin/unpin.
+    """
+
+    title = models.CharField(max_length=200)
+    content_html = models.TextField(blank=True, default="")
+    is_pinned = models.BooleanField(default=False)
+    pinned_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_notices")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_pinned", "-pinned_at", "-created_at"]
+
+    def __str__(self) -> str:
+        return self.title

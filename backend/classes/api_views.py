@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.permissions import IsAdmin, IsParent, IsTeacher
+from users.rbac_permissions import HasPortalPermission
 from students.models import Student
 
 from .models import Classroom, Enrollment, LiveClass
@@ -13,12 +14,13 @@ from .serializers import ClassroomSerializer, EnrollmentSerializer, LiveClassSer
 class ClassroomViewSet(viewsets.ModelViewSet):
     queryset = Classroom.objects.select_related("teacher").all().order_by("name")
     serializer_class = ClassroomSerializer
+    rbac_path = "/portal/classroom"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -30,7 +32,7 @@ class ClassroomViewSet(viewsets.ModelViewSet):
             return qs.filter(enrollments__student__parent=user).distinct()
         return qs
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, IsAdmin | IsTeacher])
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher])
     def enroll(self, request, pk=None):
         classroom = self.get_object()
         student_id = request.data.get("student")
@@ -45,12 +47,13 @@ class ClassroomViewSet(viewsets.ModelViewSet):
 class LiveClassViewSet(viewsets.ModelViewSet):
     queryset = LiveClass.objects.select_related("classroom", "created_by").all().order_by("-starts_at")
     serializer_class = LiveClassSerializer
+    rbac_path = "/portal/live-class"
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
-            self.permission_classes = [permissions.IsAuthenticated, IsAdmin | IsTeacher]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission]
         return super().get_permissions()
 
     def get_queryset(self):
