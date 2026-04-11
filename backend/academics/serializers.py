@@ -40,6 +40,8 @@ class SubjectSerializer(serializers.ModelSerializer):
             "subject_teacher_label",
             "school_class",
             "section",
+            "full_marks",
+            "pass_marks",
             "classroom",
             "classroom_key",
             "classroom_label",

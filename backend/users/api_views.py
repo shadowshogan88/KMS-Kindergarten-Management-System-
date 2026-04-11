@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -53,6 +53,45 @@ class PortalRolePermissionViewSet(viewsets.ModelViewSet):
     queryset = PortalRolePermission.objects.select_related("role").all()
     serializer_class = PortalRolePermissionSerializer
     rbac_path = "/portal/roles"
+
+    def create(self, request, *args, **kwargs):
+        """
+        Idempotent create for (role, path).
+        If a permission already exists for the same role+path, treat POST as update
+        instead of returning a 400 unique-together error.
+        """
+
+        def normalize_path(v):
+            s = (v or "").strip()
+            if not s:
+                return s
+            if not s.startswith("/"):
+                s = f"/{s}"
+            if len(s) > 1:
+                s = s.rstrip("/")
+            return s
+
+        data = request.data.copy()
+        role_id = data.get("role")
+        path = normalize_path(data.get("path"))
+        if path is not None:
+            data["path"] = path
+
+        existing = None
+        if role_id and path:
+            existing = PortalRolePermission.objects.filter(role_id=role_id, path=path).first()
+
+        if existing:
+            serializer = self.get_serializer(existing, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def get_queryset(self):
         qs = super().get_queryset()

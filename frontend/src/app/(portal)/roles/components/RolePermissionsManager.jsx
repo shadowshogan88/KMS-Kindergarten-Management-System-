@@ -3,14 +3,45 @@ import { Link, useNavigate } from 'react-router';
 import { LuArrowLeft, LuRefreshCcw, LuSave } from 'react-icons/lu';
 
 import { apiJson } from '@/utils/api';
-import { authStorage } from '@/utils/auth';
+import { authStorage, getApiBaseUrl } from '@/utils/auth';
 import { menuItemsData } from '@/components/layouts/SideNav/menu';
 import { canPortal } from '@/utils/portalPermissions';
+
+const normalizePath = v => {
+  let s = String(v || '').trim();
+  if (!s) return '';
+  if (!s.startsWith('/')) s = `/${s}`;
+  if (s.length > 1) s = s.replace(/\/+$/, '');
+  return s;
+};
+
+const normalizeApiPath = nextUrlOrPath => {
+  if (!nextUrlOrPath) return '';
+  let p = String(nextUrlOrPath);
+  try {
+    if (/^https?:\/\//i.test(p)) {
+      const u = new URL(p);
+      p = `${u.pathname}${u.search || ''}`;
+    }
+  } catch {}
+
+  const apiBase = getApiBaseUrl();
+  let apiPrefix = '';
+  try {
+    apiPrefix = new URL(apiBase).pathname.replace(/\/+$/, '');
+  } catch {}
+  if (apiPrefix && p.startsWith(apiPrefix)) p = p.slice(apiPrefix.length) || '/';
+  if (!p.startsWith('/')) p = `/${p}`;
+  return p;
+};
 
 const flattenPortalLinks = (items, out = []) => {
   for (const it of items || []) {
     if (it?.children?.length) flattenPortalLinks(it.children, out);
-    if (it?.href && String(it.href).startsWith('/portal/')) out.push({ href: it.href, label: it.label || it.key || it.href });
+    if (it?.href && String(it.href).startsWith('/portal/')) {
+      const href = normalizePath(it.href);
+      if (href) out.push({ href, label: it.label || it.key || it.href });
+    }
   }
   return out;
 };
@@ -19,7 +50,7 @@ const uniqByHref = list => {
   const seen = new Set();
   const out = [];
   for (const it of list || []) {
-    const href = String(it?.href || '');
+    const href = normalizePath(it?.href || '');
     if (!href || seen.has(href)) continue;
     seen.add(href);
     out.push({ href, label: it?.label || href });
@@ -58,12 +89,19 @@ const RolePermissionsManager = ({ roleId }) => {
       const roleData = await apiJson(`/portal-roles/${roleId}/`);
       setRole(roleData);
 
-      const data = await apiJson(`/portal-role-permissions/?role=${encodeURIComponent(roleId)}&page=1`);
-      const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+      const results = [];
+      let nextPath = `/portal-role-permissions/?role=${encodeURIComponent(roleId)}`;
+      for (let i = 0; i < 50 && nextPath; i += 1) {
+        const data = await apiJson(nextPath);
+        const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        results.push(...rows);
+        nextPath = normalizeApiPath(data?.next);
+      }
+
       const nextMap = {};
       const nextIdMap = {};
       for (const p of results) {
-        const path = String(p?.path || '');
+        const path = normalizePath(p?.path || '');
         if (!path) continue;
         nextIdMap[path] = p.id;
         nextMap[path] = {
@@ -112,7 +150,7 @@ const RolePermissionsManager = ({ roleId }) => {
     setIsSaving(true);
     try {
       for (const link of links) {
-        const path = link.href;
+        const path = normalizePath(link.href);
         const row = map[path] || defaultRow();
         const hasAny = row.view || row.create || row.edit || row.delete;
         const existingId = idMap[path];

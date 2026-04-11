@@ -69,6 +69,7 @@ const PortalWeeklyHolidays = lazy(() => import('@/app/(portal)/weekly-holidays')
 const PortalClassRoutine = lazy(() => import('@/app/(portal)/class-routine'));
 const PortalLiveClass = lazy(() => import('@/app/(portal)/live-class'));
 const PortalNotices = lazy(() => import('@/app/(portal)/notices'));
+const PortalNotifications = lazy(() => import('@/app/(portal)/notifications'));
 const PortalNoticeDetail = lazy(() => import('@/app/(portal)/notices/detail'));
 const PortalRoles = lazy(() => import('@/app/(portal)/roles'));
 const PortalRolePermissions = lazy(() => import('@/app/(portal)/roles/permissions'));
@@ -79,6 +80,21 @@ const PortalSpecialClassesSetting = lazy(() => import('@/app/(portal)/special-cl
 const PortalStudents = lazy(() => import('@/app/(portal)/students'));
 const PortalAcademicAttendance = lazy(() => import('@/app/(portal)/attendance'));
 const PortalAcademicAttendanceReport = lazy(() => import('@/app/(portal)/attendance-report'));
+const PortalExams = lazy(() => import('@/app/(portal)/exam/exams'));
+const PortalExamMarks = lazy(() => import('@/app/(portal)/exam/marks'));
+const PortalExamResults = lazy(() => import('@/app/(portal)/exam/results'));
+const PortalExamRankings = lazy(() => import('@/app/(portal)/exam/rankings'));
+const PortalExamPromotions = lazy(() => import('@/app/(portal)/exam/promotions'));
+const PortalExamAnalytics = lazy(() => import('@/app/(portal)/exam/analytics'));
+const PortalExamAuditLogs = lazy(() => import('@/app/(portal)/exam/audit-logs'));
+const PortalHomework = lazy(() => import('@/app/(portal)/homework'));
+const PortalHomeworkCreate = lazy(() => import('@/app/(portal)/homework/create'));
+const PortalHomeworkSubmissions = lazy(() => import('@/app/(portal)/homework/submissions'));
+const PortalHomeworkSubmit = lazy(() => import('@/app/(portal)/homework/submit'));
+const PortalHomeworkSubmissionDetail = lazy(() => import('@/app/(portal)/homework/submissions/detail'));
+const PortalAssignment = lazy(() => import('@/app/(portal)/assignment'));
+const PortalAssignmentCreate = lazy(() => import('@/app/(portal)/assignment/create'));
+const PortalAssignmentSubmissions = lazy(() => import('@/app/(portal)/assignment/submissions'));
 
 // layouts
 const SideNavCompact = lazy(() => import('@/app/(admin)/(layouts)/sidenav-compact'));
@@ -242,6 +258,10 @@ export const layoutsRoutes = [{
   name: 'PortalNotices',
   element: <PortalNotices />
 }, {
+  path: '/portal/notifications',
+  name: 'PortalNotifications',
+  element: <PortalNotifications />
+}, {
   path: '/portal/notices/:id',
   name: 'PortalNoticeDetail',
   element: <PortalNoticeDetail />
@@ -289,6 +309,66 @@ export const layoutsRoutes = [{
   path: '/portal/attendance-report',
   name: 'PortalAcademicAttendanceReport',
   element: <PortalAcademicAttendanceReport />
+}, {
+  path: '/portal/exam/exams',
+  name: 'PortalExams',
+  element: <PortalExams />
+}, {
+  path: '/portal/exam/marks',
+  name: 'PortalExamMarks',
+  element: <PortalExamMarks />
+}, {
+  path: '/portal/exam/results',
+  name: 'PortalExamResults',
+  element: <PortalExamResults />
+}, {
+  path: '/portal/exam/rankings',
+  name: 'PortalExamRankings',
+  element: <PortalExamRankings />
+}, {
+  path: '/portal/exam/promotions',
+  name: 'PortalExamPromotions',
+  element: <PortalExamPromotions />
+}, {
+  path: '/portal/exam/analytics',
+  name: 'PortalExamAnalytics',
+  element: <PortalExamAnalytics />
+}, {
+  path: '/portal/exam/audit-logs',
+  name: 'PortalExamAuditLogs',
+  element: <PortalExamAuditLogs />
+}, {
+  path: '/portal/homework',
+  name: 'PortalHomework',
+  element: <PortalHomework />
+}, {
+  path: '/portal/homework/create',
+  name: 'PortalHomeworkCreate',
+  element: <PortalHomeworkCreate />
+}, {
+  path: '/portal/homework/submissions',
+  name: 'PortalHomeworkSubmissions',
+  element: <PortalHomeworkSubmissions />
+}, {
+  path: '/portal/homework/:homeworkId/submit',
+  name: 'PortalHomeworkSubmit',
+  element: <PortalHomeworkSubmit />
+}, {
+  path: '/portal/homework/submissions/:submissionId',
+  name: 'PortalHomeworkSubmissionDetail',
+  element: <PortalHomeworkSubmissionDetail />
+}, {
+  path: '/portal/assignment',
+  name: 'PortalAssignment',
+  element: <PortalAssignment />
+}, {
+  path: '/portal/assignment/create',
+  name: 'PortalAssignmentCreate',
+  element: <PortalAssignmentCreate />
+}, {
+  path: '/portal/assignment/submissions',
+  name: 'PortalAssignmentSubmissions',
+  element: <PortalAssignmentSubmissions />
 }, {
   path: '/portal/classroom',
   name: 'PortalClassroom',

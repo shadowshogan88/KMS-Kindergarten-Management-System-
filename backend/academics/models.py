@@ -92,6 +92,8 @@ class Subject(models.Model):
         blank=True,
     )
     section = models.CharField(max_length=1, blank=True, default="")
+    full_marks = models.PositiveIntegerField(default=100)
+    pass_marks = models.PositiveIntegerField(default=40)
     subject_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=TYPE_THEORY)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -104,6 +106,8 @@ class Subject(models.Model):
 
     def clean(self):
         super().clean()
+        if self.pass_marks > self.full_marks:
+            raise ValidationError({"pass_marks": "Pass marks cannot exceed full marks."})
         if not self.school_class_id:
             self.section = (self.section or "").strip().upper()
             return

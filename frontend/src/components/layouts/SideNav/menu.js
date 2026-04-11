@@ -66,6 +66,39 @@ export const menuItemsData = [{
     href: '/portal/notices'
   }]
 }, {
+  key: 'Exam',
+  label: 'Exam',
+  icon: LuClipboardList,
+  children: [{
+    key: 'ExamList',
+    label: 'Exams',
+    href: '/portal/exam/exams'
+  }, {
+    key: 'ExamMarks',
+    label: 'Marks Entry',
+    href: '/portal/exam/marks'
+  }, {
+    key: 'ExamResults',
+    label: 'Results',
+    href: '/portal/exam/results'
+  }, {
+    key: 'ExamRankings',
+    label: 'Merit Ranking',
+    href: '/portal/exam/rankings'
+  }, {
+    key: 'ExamPromotions',
+    label: 'Promotions',
+    href: '/portal/exam/promotions'
+  }, {
+    key: 'ExamAnalytics',
+    label: 'Analytics',
+    href: '/portal/exam/analytics'
+  }, {
+    key: 'ExamAuditLogs',
+    label: 'Audit Logs',
+    href: '/portal/exam/audit-logs'
+  }]
+}, {
   key: 'Live Class',
   label: 'Live Class',
   icon: LuPictureInPicture2,
@@ -86,6 +119,40 @@ export const menuItemsData = [{
     key: 'Syllabus',
     label: 'Syllabus',
     href: '/portal/syllabus'
+  }, {
+    key: 'HomeworkMenu',
+    label: 'Homework',
+    href: '#',
+    children: [{
+      key: 'HomeworkList',
+      label: 'Homework List',
+      href: '/portal/homework'
+    }, {
+      key: 'HomeworkCreate',
+      label: 'Create Homework',
+      href: '/portal/homework/create'
+    }, {
+      key: 'HomeworkSubmissions',
+      label: 'Review Submissions',
+      href: '/portal/homework/submissions'
+    }]
+  }, {
+    key: 'AssignmentMenu',
+    label: 'Assignment',
+    href: '#',
+    children: [{
+      key: 'AssignmentList',
+      label: 'Assignment List',
+      href: '/portal/assignment'
+    }, {
+      key: 'AssignmentCreate',
+      label: 'Create Assignment',
+      href: '/portal/assignment/create'
+    }, {
+      key: 'AssignmentSubmissions',
+      label: 'Review Submissions',
+      href: '/portal/assignment/submissions'
+    }]
   }, {
     key: 'Special Classes',
     label: 'Special Classes',

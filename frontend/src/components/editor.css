@@ -1,0 +1,159 @@
+.editor-wrapper {
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.375rem;
+  background: #fff;
+  /* Must be visible so CKEditor dropdown panels (heading/font/table/etc.) are not clipped/hidden. */
+  overflow: visible;
+}
+
+.editor-wrapper--page {
+  background: rgb(243 244 246);
+}
+
+.editor-menubar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgb(229 231 235);
+  background: #fff;
+  position: relative;
+  z-index: 70;
+}
+
+.editor-menubar__item {
+  background: transparent;
+  border: 0;
+  padding: 0.25rem 0.25rem;
+  font-size: 0.95rem;
+  color: rgb(55 65 81);
+}
+
+.editor-menubar__item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.editor-menu {
+  position: relative;
+}
+
+.editor-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  /* Must be above the CKEditor toolbar container (z-index: 60). */
+  z-index: 80;
+}
+
+.editor-menu__item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+  color: rgb(31 41 55);
+}
+
+.editor-menu__item:hover:not(:disabled) {
+  background: rgb(243 244 246);
+}
+
+.editor-menu__item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#toolbar-container {
+  border-bottom: 1px solid rgb(229 231 235);
+  padding: 0.5rem;
+  background: #fff;
+  /* Avoid clipping CKEditor dropdown panels (heading/font/table/etc.).
+     Note: `overflow-x: auto` forces `overflow-y` to become non-visible in many browsers,
+     which makes dropdowns look like they "go under" the editor or appear inside a scrollbar. */
+  overflow: visible;
+  position: relative;
+  z-index: 60;
+}
+
+/* Let the toolbar wrap instead of forcing a horizontal scrollbar. */
+#toolbar-container .ck-toolbar,
+#toolbar-container .ck-toolbar__items {
+  flex-wrap: wrap;
+}
+
+.document-editor-container {
+  padding: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.document-editor-container .ck-editor__editable {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Make the decoupled toolbar look like an app toolbar */
+.editor-wrapper .ck-toolbar {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Ensure dropdowns/balloons render above the editable area. */
+.editor-wrapper .ck.ck-dropdown__panel,
+.editor-wrapper .ck.ck-balloon-panel {
+  z-index: 10050 !important;
+}
+
+/* Canvas-like big bordered editor (class is added in onReady) */
+.document-editor__editable--canvas {
+  --editor-primary: var(--canvas-primary, #6f42c1);
+  width: 100%;
+  min-height: 420px;
+  padding: 18px 20px !important;
+  background: #fff;
+  border: 2px solid var(--editor-primary) !important;
+  border-radius: 10px !important;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.document-editor__editable--canvas.ck-focused {
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.12) !important;
+}
+
+/* Page-like surface (class is added in onReady) */
+.document-editor__editable--page {
+  width: min(816px, 100%);
+  min-height: 520px;
+  margin: 0 auto;
+  padding: 48px 56px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 4%), 0 0 0 1px rgb(229 231 235);
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .document-editor-container {
+    padding: 0.5rem;
+  }
+  .document-editor__editable--canvas {
+    min-height: 340px;
+    padding: 14px 14px !important;
+  }
+  .document-editor__editable--page {
+    min-height: 360px;
+    padding: 24px 20px;
+  }
+}

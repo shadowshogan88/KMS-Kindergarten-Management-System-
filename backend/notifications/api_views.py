@@ -1,17 +1,23 @@
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework import status
 
 from users.permissions import IsAdmin, IsTeacher
 from users.rbac_permissions import HasPortalPermission
 from students.models import Student
 
-from .models import Announcement, Notice
-from .serializers import AnnouncementSerializer, NoticeSerializer
+from .models import Announcement, Notice, Notification, NotificationRecipient
+from .serializers import (
+    AnnouncementSerializer,
+    NoticeSerializer,
+    InboxNotificationSerializer,
+    SendNotificationSerializer,
+)
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
@@ -129,3 +135,126 @@ class NoticeViewSet(viewsets.ModelViewSet):
         obj.pinned_at = timezone.now() if next_val else None
         obj.save(update_fields=["is_pinned", "pinned_at", "updated_at"])
         return Response(NoticeSerializer(obj).data)
+
+
+class NotificationInboxViewSet(viewsets.GenericViewSet):
+    """
+    Per-user notification inbox:
+    - list (all/unread, type filters)
+    - mark read/unread
+    - read-all
+    - summary (unread count)
+    - send (admin/teacher)
+    """
+
+    serializer_class = InboxNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        now = timezone.now()
+        qs = (
+            NotificationRecipient.objects.filter(user=user)
+            .select_related("notification", "notification__created_by")
+        )
+
+        # Only published + not expired.
+        qs = qs.filter(Q(notification__publish_at__isnull=True) | Q(notification__publish_at__lte=now))
+        qs = qs.exclude(notification__expires_at__lt=now)
+
+        tab = (self.request.query_params.get("tab") or "").strip().lower()
+        if tab == "unread":
+            qs = qs.filter(is_read=False)
+
+        n_type = (self.request.query_params.get("type") or "").strip().upper()
+        if n_type:
+            qs = qs.filter(notification__type=n_type)
+
+        priority = (self.request.query_params.get("priority") or "").strip().upper()
+        if priority:
+            qs = qs.filter(notification__priority=priority)
+
+        return qs.order_by("-notification__created_at", "-id")
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            ser = self.get_serializer(page, many=True)
+            return self.get_paginated_response(ser.data)
+        ser = self.get_serializer(qs, many=True)
+        return Response(ser.data)
+
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        now = timezone.now()
+        base = NotificationRecipient.objects.filter(user=request.user)
+        base = base.filter(Q(notification__publish_at__isnull=True) | Q(notification__publish_at__lte=now))
+        base = base.exclude(notification__expires_at__lt=now)
+
+        counts = base.aggregate(
+            total=Count("id"),
+            unread=Count("id", filter=Q(is_read=False)),
+        )
+        return Response({"total": counts["total"], "unread": counts["unread"]})
+
+    @action(detail=True, methods=["post"], url_path="read")
+    def mark_read(self, request, pk=None):
+        obj = self.get_object()
+        if not obj.is_read:
+            obj.is_read = True
+            obj.read_at = timezone.now()
+            obj.save(update_fields=["is_read", "read_at"])
+        return Response(InboxNotificationSerializer(obj).data)
+
+    @action(detail=True, methods=["post"], url_path="unread")
+    def mark_unread(self, request, pk=None):
+        obj = self.get_object()
+        if obj.is_read:
+            obj.is_read = False
+            obj.read_at = None
+            obj.save(update_fields=["is_read", "read_at"])
+        return Response(InboxNotificationSerializer(obj).data)
+
+    @action(detail=False, methods=["post"], url_path="read-all")
+    def read_all(self, request):
+        now = timezone.now()
+        qs = NotificationRecipient.objects.filter(user=request.user, is_read=False)
+        qs = qs.filter(Q(notification__publish_at__isnull=True) | Q(notification__publish_at__lte=now))
+        qs = qs.exclude(notification__expires_at__lt=now)
+        updated = qs.update(is_read=True, read_at=timezone.now())
+        return Response({"updated": updated})
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="send",
+        permission_classes=[permissions.IsAuthenticated, IsAdmin | IsTeacher],
+    )
+    def send(self, request):
+        ser = SendNotificationSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        user = request.user
+        recipient_user_ids = ser.get_recipient_user_ids(user)
+        if not recipient_user_ids:
+            return Response({"detail": "No recipients found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        n = Notification.objects.create(
+            type=ser.validated_data["type"],
+            priority=ser.validated_data["priority"],
+            title=ser.validated_data["title"],
+            message=ser.validated_data.get("message") or "",
+            action_url=ser.validated_data.get("action_url") or "",
+            data=ser.validated_data.get("data") or {},
+            publish_at=ser.validated_data.get("publish_at"),
+            expires_at=ser.validated_data.get("expires_at"),
+            created_by=user,
+        )
+
+        NotificationRecipient.objects.bulk_create(
+            [NotificationRecipient(notification=n, user_id=uid) for uid in recipient_user_ids],
+            ignore_conflicts=True,
+        )
+
+        return Response({"notification_id": n.id, "recipients": len(recipient_user_ids)}, status=status.HTTP_201_CREATED)

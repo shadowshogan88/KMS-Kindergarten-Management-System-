@@ -1,134 +1,109 @@
-import ArabianFlag from '@/assets/images/flags/arebian.svg';
-import FrenchFlag from '@/assets/images/flags/french.jpg';
-import GermanyFlag from '@/assets/images/flags/germany.jpg';
-import ItalyFlag from '@/assets/images/flags/italy.jpg';
-import JapaneseFlag from '@/assets/images/flags/japanese.svg';
-import RussiaFlag from '@/assets/images/flags/russia.jpg';
-import SpainFlag from '@/assets/images/flags/spain.jpg';
-import UsFlag from '@/assets/images/flags/us.jpg';
 import avatar1 from '@/assets/images/user/avatar-1.png';
-import avatar3 from '@/assets/images/user/avatar-3.png';
-import avatar5 from '@/assets/images/user/avatar-5.png';
-import avatar7 from '@/assets/images/user/avatar-7.png';
 import { Link } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
 import { TbSearch } from 'react-icons/tb';
 import SimpleBar from 'simplebar-react';
 import SidenavToggle from './SidenavToggle';
-import { LuBellRing, LuClock, LuGem, LuHeart, LuLogOut, LuMail, LuMessagesSquare, LuMoveRight, LuShoppingBag } from 'react-icons/lu';
-const languages = [{
-  src: UsFlag,
-  label: 'English'
-}, {
-  src: SpainFlag,
-  label: 'Spanish'
-}, {
-  src: GermanyFlag,
-  label: 'German'
-}, {
-  src: FrenchFlag,
-  label: 'French'
-}, {
-  src: JapaneseFlag,
-  label: 'Japanese'
-}, {
-  src: ItalyFlag,
-  label: 'Italian'
-}, {
-  src: RussiaFlag,
-  label: 'Russian'
-}, {
-  src: ArabianFlag,
-  label: 'Arabic'
-}];
+import {
+  LuBellRing,
+  LuBookOpen,
+  LuCalendarDays,
+  LuClock,
+  LuCreditCard,
+  LuGem,
+  LuLogOut,
+  LuMail,
+  LuMegaphone,
+  LuMessagesSquare,
+  LuMoveRight,
+  LuPresentation,
+  LuSchool,
+  LuUserX
+} from 'react-icons/lu';
+import { apiJson } from '@/utils/api';
+
 const tabs = [{
-  id: 'tabsViewall',
-  title: 'View all',
-  active: true
+  id: 'all',
+  title: 'All',
+  types: []
 }, {
-  id: 'tabsMentions',
-  title: 'Mentions'
+  id: 'homework',
+  title: 'Homework',
+  types: ['HOMEWORK_ASSIGNED']
 }, {
-  id: 'tabsFollowers',
-  title: 'Followers'
+  id: 'exam',
+  title: 'Exam',
+  types: ['EXAM_SCHEDULE_PUBLISHED', 'EXAM_REMINDER', 'RESULT_PUBLISHED']
 }, {
-  id: 'tabsInvites',
-  title: 'Invites'
+  id: 'fees',
+  title: 'Fees',
+  types: ['FEE_DUE_REMINDER']
+}, {
+  id: 'attendance',
+  title: 'Attendance',
+  types: ['ATTENDANCE_ABSENT_ALERT']
+}, {
+  id: 'notices',
+  title: 'Notices',
+  types: ['HOLIDAY_NOTICE', 'SCHOOL_ANNOUNCEMENT', 'ADMIN_BROADCAST']
+}, {
+  id: 'live',
+  title: 'Live',
+  types: ['LIVE_CLASS_REMINDER']
 }];
-const notifications = {
-  tabsViewall: [{
-    type: 'follow',
-    avatar: avatar3,
-    text: <>
-          <b>@willie_passem</b> followed you
-        </>,
-    time: 'Wednesday 03:42 PM',
-    ago: '4 sec'
-  }, {
-    type: 'comment',
-    avatar: avatar5,
-    text: <>
-          <b>@caroline_jessica</b> commented <br />
-          on your post
-        </>,
-    time: 'Wednesday 03:42 PM',
-    ago: '15 min',
-    comment: 'Amazing! Fast, to the point, professional and really amazing to work with them!!!'
-  }, {
-    type: 'purchase',
-    icon: <LuShoppingBag className="size-5 text-danger" />,
-    text: <>
-          Successfully purchased a business plan for <span className="text-danger">$199.99</span>
-        </>,
-    time: 'Monday 11:26 AM',
-    ago: 'yesterday'
-  }, {
-    type: 'like',
-    avatar: avatar7,
-    icon: <LuHeart className="size-3.5 fill-orange-500" />,
-    text: <>
-          <b>@scott</b> liked your post
-        </>,
-    time: 'Thursday 06:59 AM',
-    ago: '1 Week'
-  }],
-  tabsMentions: [{
-    type: 'comment',
-    avatar: avatar5,
-    text: <>
-          <b>@caroline_jessica</b> commented <br />
-          on your post
-        </>,
-    time: 'Wednesday 03:42 PM',
-    ago: '15 min',
-    comment: 'Amazing! Fast, to the point, professional and really amazing to work with them!!!'
-  }, {
-    type: 'like',
-    avatar: avatar7,
-    icon: <LuHeart className="size-3.5 fill-orange-500" />,
-    text: <>
-          <b>@scott</b> liked your post
-        </>,
-    time: 'Thursday 06:59 AM',
-    ago: '1 Week'
-  }],
-  tabsFollowers: [{
-    type: 'follow',
-    avatar: avatar3,
-    text: <>
-          <b>@willie_passem</b> followed you
-        </>,
-    time: 'Wednesday 03:42 PM',
-    ago: '4 sec'
-  }],
-  tabsInvites: [{
-    type: 'purchase',
-    icon: <LuShoppingBag className="size-5 text-danger" />,
-    text: <>
-          Successfully purchased a business plan for <span className="text-danger">$199.99</span>
-        </>,
-    time: 'Monday 11:26 AM',
-    ago: 'yesterday'
-  }]
+
+const isExternalUrl = url => /^https?:\/\//i.test(url || '');
+
+const formatWhen = iso => {
+  if (!iso) return '';
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(iso));
+  } catch {
+    return '';
+  }
+};
+
+const formatAgo = iso => {
+  if (!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const s = Math.max(0, Math.floor(diffMs / 1000));
+  if (s < 60) return `${s} sec`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d} day`;
+  const w = Math.floor(d / 7);
+  return `${w} wk`;
+};
+
+const typeMeta = type => {
+  switch (type) {
+    case 'HOMEWORK_ASSIGNED':
+      return { icon: <LuBookOpen className="size-5 text-blue-600" />, bg: 'bg-blue-50' };
+    case 'EXAM_SCHEDULE_PUBLISHED':
+    case 'EXAM_REMINDER':
+    case 'RESULT_PUBLISHED':
+      return { icon: <LuCalendarDays className="size-5 text-purple-600" />, bg: 'bg-purple-50' };
+    case 'FEE_DUE_REMINDER':
+      return { icon: <LuCreditCard className="size-5 text-amber-600" />, bg: 'bg-amber-50' };
+    case 'ATTENDANCE_ABSENT_ALERT':
+      return { icon: <LuUserX className="size-5 text-rose-600" />, bg: 'bg-rose-50' };
+    case 'HOLIDAY_NOTICE':
+      return { icon: <LuSchool className="size-5 text-emerald-600" />, bg: 'bg-emerald-50' };
+    case 'LIVE_CLASS_REMINDER':
+      return { icon: <LuPresentation className="size-5 text-cyan-600" />, bg: 'bg-cyan-50' };
+    case 'ADMIN_BROADCAST':
+    case 'SCHOOL_ANNOUNCEMENT':
+      return { icon: <LuMegaphone className="size-5 text-slate-700" />, bg: 'bg-default-100' };
+    default:
+      return { icon: <LuBellRing className="size-5 text-default-700" />, bg: 'bg-default-100' };
+  }
 };
 const profileMenu = [{
   icon: <LuMail className="size-4" />,
@@ -151,6 +126,76 @@ const profileMenu = [{
   to: '/portal/logout'
 }];
 const Topbar = () => {
+  const [activeTab, setActiveTab] = useState('all');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [allItems, setAllItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const activeTypes = useMemo(() => {
+    const t = tabs.find(x => x.id === activeTab);
+    return t?.types || [];
+  }, [activeTab]);
+
+  const visibleItems = useMemo(() => {
+    if (!activeTypes.length) return allItems;
+    return allItems.filter(n => activeTypes.includes(n.type));
+  }, [allItems, activeTypes]);
+
+  const loadSummary = async () => {
+    try {
+      const data = await apiJson('/inbox-notifications/summary/');
+      setUnreadCount(data?.unread || 0);
+    } catch {
+      setUnreadCount(0);
+    }
+  };
+
+  const loadItems = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson('/inbox-notifications/');
+      setAllItems(Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : []);
+    } catch {
+      setAllItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markRead = async receiptId => {
+    try {
+      const updated = await apiJson(`/inbox-notifications/${encodeURIComponent(receiptId)}/read/`, {
+        method: 'POST'
+      });
+      setAllItems(prev => prev.map(x => x.id === receiptId ? updated : x));
+      loadSummary();
+    } catch {
+      // ignore
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await apiJson('/inbox-notifications/read-all/', {
+        method: 'POST'
+      });
+      loadItems();
+      loadSummary();
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    loadSummary();
+    loadItems();
+    const t = setInterval(() => {
+      loadSummary();
+      loadItems();
+    }, 30000);
+    return () => clearInterval(t);
+  }, []);
+
   return <div className="app-header min-h-topbar-height flex items-center sticky top-0 z-30 bg-(--topbar-background) border-b border-default-200">
       <div className="w-full flex items-center justify-between px-6">
         <div className="flex items-center gap-5">
@@ -168,76 +213,70 @@ const Topbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="topbar-item hs-dropdown [--placement:bottom-right] relative inline-flex">
-            <button className="hs-dropdown-toggle btn btn-icon size-8 hover:bg-default-150 rounded-full relative" type="button">
-              <img src={UsFlag} alt="us-flag" className="size-4.5 rounded" />
-            </button>
-            <div className="hs-dropdown-menu" role="menu">
-              {languages.map((lang, i) => <Link key={i} to="#" className="flex items-center gap-x-3.5 py-1.5 px-3 text-default-600 hover:bg-default-150 rounded font-medium">
-                  <img src={lang.src} alt={lang.label} className="size-4 rounded-full" />
-                  {lang.label}
-                </Link>)}
-            </div>
-          </div>
-
           <div className="topbar-item hs-dropdown [--auto-close:inside] relative inline-flex">
             <button type="button" className="hs-dropdown-toggle btn btn-icon size-8 hover:bg-default-150 rounded-full relative">
               <LuBellRing className="size-4.5" />
-              <span className="absolute end-0 top-0 size-1.5 bg-primary/90 rounded-full"></span>
+              {unreadCount > 0 && <span className="absolute end-0 top-0 size-1.5 bg-primary/90 rounded-full"></span>}
             </button>
             <div className="hs-dropdown-menu max-w-100 p-0">
               <div className="p-4 border-b border-default-200 flex items-center gap-2">
                 <h3 className="text-base text-default-800">Notifications</h3>
-                <span className="size-5 font-semibold bg-orange-500 rounded text-white flex items-center justify-center text-xs">
-                  15
-                </span>
+                {unreadCount > 0 && <span className="size-5 font-semibold bg-orange-500 rounded text-white flex items-center justify-center text-xs">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>}
               </div>
 
-              <nav className="flex gap-x-1 bg-default-150 p-2 border-b border-default-200" role="tablist">
-                {tabs.map((tab, i) => <button key={i} data-hs-tab={`#${tab.id}`} type="button" className={`hs-tab-active:bg-card hs-tab-active:text-primary py-0.5 px-4 rounded font-semibold inline-flex items-center gap-x-2 border-b-2 border-transparent text-xs whitespace-nowrap text-default-500 hover:text-blue-600 ${tab.active ? 'active' : ''}`}>
+              <nav className="flex gap-x-1 bg-default-150 p-2 border-b border-default-200 overflow-x-auto" role="tablist">
+                {tabs.map((tab, i) => <button key={i} type="button" onClick={() => setActiveTab(tab.id)} className={`py-0.5 px-4 rounded font-semibold inline-flex items-center gap-x-2 border-b-2 border-transparent text-xs whitespace-nowrap ${activeTab === tab.id ? 'bg-card text-primary' : 'text-default-500 hover:text-blue-600'}`}>
                     {tab.title}
                   </button>)}
               </nav>
 
               <SimpleBar className="h-80">
-                {tabs.map((tab, i) => <div key={i} id={tab.id} className={tab.active ? '' : 'hidden'}>
-                    {notifications[tab.id]?.map((n, j) => <Link key={j} to="#" className="flex gap-3 p-4 items-start hover:bg-default-150">
-                        {n.avatar ? <div className="relative">
-                            <div className="size-10 rounded-md bg-default-100 flex justify-center items-center">
-                              <img src={n.avatar} alt="avatar" className="rounded-md" />
-                            </div>
-                            {n.icon && <div className="absolute bottom-0 -end-0.5 text-orange-500">
-                                {n.icon}
-                              </div>}
-                          </div> : <div className="size-10 rounded-md bg-red-100 flex justify-center items-center">
-                            {n.icon}
-                          </div>}
+                {loading ? <div className="p-4 text-sm text-default-500">Loading...</div> : visibleItems.length === 0 ? <div className="p-4 text-sm text-default-500">No notifications</div> : visibleItems.map(n => {
+                  const meta = typeMeta(n.type);
+                  const title = n.title || n.message || 'Notification';
+                  const href = n.action_url || '#!';
+                  const content = <>
+                        <div className={`size-10 rounded-md ${meta.bg} flex justify-center items-center`}>
+                          {meta.icon}
+                        </div>
                         <div className="flex justify-between w-full text-sm">
                           <div>
-                            <h6 className="mb-2 font-medium text-default-800">{n.text}</h6>
+                            <h6 className={`mb-2 font-medium ${n.is_read ? 'text-default-600' : 'text-default-800'}`}>{title}</h6>
                             <p className="flex items-center gap-1 text-default-500 text-xs">
-                              <LuClock className="size-3.5" /> <span>{n.time}</span>
+                              <LuClock className="size-3.5" /> <span>{formatWhen(n.created_at)}</span>
                             </p>
-                            {n.comment && <p className="p-2 bg-default-50 text-default-500 mt-2 rounded">
-                                {n.comment}
+                            {n.message && n.message !== n.title && <p className="p-2 bg-default-50 text-default-500 mt-2 rounded line-clamp-2">
+                                {n.message}
                               </p>}
                           </div>
                           <div className="flex items-center gap-2 text-xs text-default-500">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                            {n.ago}
+                            {!n.is_read && <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>}
+                            {formatAgo(n.created_at)}
                           </div>
                         </div>
-                      </Link>)}
-                  </div>)}
+                      </>;
+
+                  if (href && href !== '#!' && !isExternalUrl(href)) {
+                    return <Link key={n.id} to={href} onClick={() => markRead(n.id)} className="flex gap-3 p-4 items-start hover:bg-default-150">
+                        {content}
+                      </Link>;
+                  }
+
+                  return <a key={n.id} href={href || '#!'} target={isExternalUrl(href) ? '_blank' : undefined} rel={isExternalUrl(href) ? 'noreferrer' : undefined} onClick={() => markRead(n.id)} className="flex gap-3 p-4 items-start hover:bg-default-150">
+                      {content}
+                    </a>;
+                })}
               </SimpleBar>
 
               <div className="flex items-center justify-between p-4 border-t border-default-200">
-                <Link to="#!" className="text-sm font-medium text-default-900">
-                  Manage Notification
-                </Link>
-                <button type="button" className="btn btn-sm text-white bg-primary">
-                  View All <LuMoveRight className="size-4" />
+                <button type="button" onClick={markAllRead} className="text-sm font-medium text-default-900 hover:text-primary">
+                  Mark all read
                 </button>
+                <Link to="/portal/notifications" className="btn btn-sm text-white bg-primary inline-flex items-center gap-2">
+                  View All <LuMoveRight className="size-4" />
+                </Link>
               </div>
             </div>
           </div>

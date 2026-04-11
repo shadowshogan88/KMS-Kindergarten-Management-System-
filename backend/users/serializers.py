@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from .models import PortalRole, PortalRolePermission
 from .rbac_utils import get_portal_permissions_for_user, portal_permissions_to_dict
@@ -57,6 +58,23 @@ class PortalRolePermissionSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("created_at", "updated_at")
+        validators = [
+            UniqueTogetherValidator(
+                queryset=PortalRolePermission.objects.all(),
+                fields=["role", "path"],
+                message="The fields role, path must make a unique set.",
+            )
+        ]
+
+    def validate_path(self, value):
+        v = (value or "").strip()
+        if not v:
+            return v
+        if not v.startswith("/"):
+            v = f"/{v}"
+        if len(v) > 1:
+            v = v.rstrip("/")
+        return v
 
 
 class UserAdminSerializer(serializers.ModelSerializer):

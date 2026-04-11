@@ -29,6 +29,8 @@ INSTALLED_APPS = [
     "classes",
     "academics",
     "attendance",
+    "exam_management",
+    "homework_management",
     "reports",
     "notifications",
     "routines",

@@ -1,0 +1,14 @@
+{% extends "exam_management/base.html" %}
+{% block title %}Exams{% endblock %}
+{% block header %}Exams{% endblock %}
+{% block content %}
+  <p>This project primarily uses the REST API. Use the portal UI for full workflows.</p>
+  <ul>
+    {% for exam in exams %}
+      <li>{{ exam.exam_name }} - {{ exam.classroom_label }} ({{ exam.status }})</li>
+    {% empty %}
+      <li>No exams found.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+

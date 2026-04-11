@@ -35,6 +35,9 @@ export const canPortal = (pathnameOrHref, action = 'view') => {
   let normalized = normalizePath(pathnameOrHref);
   if (normalized === '/portal/logout' || normalized.startsWith('/portal/logout/')) return true;
   if (normalized === '/portal/dashboard' || normalized.startsWith('/portal/dashboard/')) return true;
+  if (normalized === '/portal/notifications' || normalized.startsWith('/portal/notifications/')) {
+    return String(action || 'view').toLowerCase() === 'view';
+  }
 
   // Alias routes to share the same RBAC permission row.
   if (normalized === '/portal/special-classes-setting' || normalized.startsWith('/portal/special-classes-setting/')) {

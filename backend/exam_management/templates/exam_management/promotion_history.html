@@ -1,0 +1,15 @@
+{% extends "exam_management/base.html" %}
+{% block title %}Promotions{% endblock %}
+{% block header %}Promotion History{% endblock %}
+{% block content %}
+  <ul>
+    {% for p in promotions %}
+      <li>
+        {{ p.student }}: {{ p.from_class }} {{ p.from_section }} → {{ p.to_class }} {{ p.to_section }} ({{ p.academic_year }})
+      </li>
+    {% empty %}
+      <li>No promotions found.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+

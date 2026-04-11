@@ -1,0 +1,81 @@
+/* Canvas-style skin for CKEditor + surrounding UI.
+   HOW TO CHANGE THEME COLOR:
+   - Update --canvas-primary and --canvas-primary-600 below (or override on a wrapper). */
+
+:root {
+  --canvas-primary: #6f42c1;
+  --canvas-primary-600: #5b34a6;
+  --canvas-border: rgba(15, 23, 42, 0.14);
+  --canvas-muted: rgba(15, 23, 42, 0.64);
+  --canvas-bg: #f6f7fb;
+}
+
+.canvas-page {
+  background: var(--canvas-bg);
+}
+
+.canvas-card {
+  border: 1px solid var(--canvas-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.canvas-divider {
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+/* CKEditor toolbar like Canvas: separate top bar */
+.canvas-editor-shell .ck-toolbar {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.canvas-editor-shell .ck-toolbar__items {
+  gap: 2px;
+}
+
+.canvas-editor-shell .ck-button {
+  border-radius: 10px !important;
+}
+
+.canvas-editor-shell .ck-button:hover {
+  background: rgba(111, 66, 193, 0.1) !important;
+}
+
+.canvas-editor-shell .ck-button.ck-on {
+  background: rgba(111, 66, 193, 0.16) !important;
+}
+
+/* Word-like editable surface */
+.canvas-editor-shell .ck-editor__editable {
+  border: 2px solid var(--canvas-primary) !important;
+  border-radius: 10px !important;
+  min-height: 520px;
+  padding: 16px 16px 22px 16px !important;
+  box-shadow: none !important;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.canvas-editor-shell .ck-content {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+@media (max-width: 640px) {
+  .canvas-editor-shell .ck-editor__editable {
+    min-height: 360px;
+    padding: 12px 12px 18px 12px !important;
+  }
+}
+
+.canvas-editor-shell .ck-editor__editable.ck-focused {
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.12) !important;
+}
+
+/* Hide CKEditor default outer border if present */
+.canvas-editor-shell .ck.ck-editor__main > .ck-editor__editable {
+  margin: 0;
+}
