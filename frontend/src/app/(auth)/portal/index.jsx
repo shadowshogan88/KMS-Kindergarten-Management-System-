@@ -71,8 +71,8 @@ const PortalLogin = () => {
         <div className="card md:w-lg w-screen z-10">
           <div className="text-center px-10 py-12">
             <Link to="/index" className="flex justify-center">
-              <img src={logoDark} alt="logo dark" className="h-6 flex dark:hidden" width={111} />
-              <img src={logoLight} alt="logo light" className="h-6 hidden dark:flex" width={111} />
+              <img src={logoDark} alt="logo dark" className="h-12 w-44 object-contain flex dark:hidden" />
+              <img src={logoLight} alt="logo light" className="h-12 w-44 object-contain hidden dark:flex" />
             </Link>
 
             <div className="mt-8 text-center">
