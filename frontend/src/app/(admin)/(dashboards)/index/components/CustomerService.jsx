@@ -7,25 +7,25 @@ import { LuCalendarDays, LuEllipsisVertical } from 'react-icons/lu';
 const customers = [{
   id: 1,
   name: 'Urrie Arthur',
-  email: 'arthur@tailwick.com',
+  email: 'arthur@tinytrack.com',
   amount: '$2,452',
   image: avatar2
 }, {
   id: 2,
   name: 'Natalie Christy',
-  email: 'natalie@tailwick.com',
+  email: 'natalie@tinytrack.com',
   amount: '$1,893',
   image: avatar3
 }, {
   id: 3,
   name: 'Laurie Jackson',
-  email: 'jackson@tailwick.com',
+  email: 'jackson@tinytrack.com',
   amount: '$1,196',
   image: avatar4
 }, {
   id: 4,
   name: 'Michael Torres',
-  email: 'torres@tailwick.com',
+  email: 'torres@tinytrack.com',
   amount: '$976',
   image: avatar5
 }];

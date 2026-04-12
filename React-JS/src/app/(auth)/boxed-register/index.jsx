@@ -62,7 +62,7 @@ const Index = () => {
                         </div>
 
                         <p className="italic text-sm font-medium text-default-500">
-                          By registering you agree to the Tailwick{' '}
+                          By registering you agree to the TinyTrack{' '}
                           <Link to="#" className="underline">
                             Terms of Use
                           </Link>
@@ -127,7 +127,7 @@ const Index = () => {
                         </div>
 
                         <p className="italic text-sm font-medium text-default-500">
-                          By registering you agree to the Tailwick{' '}
+                          By registering you agree to the TinyTrack{' '}
                           <Link to="#" className="underline">
                             Terms of Use
                           </Link>

@@ -5,9 +5,9 @@ import LeaveTabel from './components/LeaveTabel';
 import Modal from './components/Modal';
 const Index = () => {
   return <>
-      <PageMeta title="Leave Manage (HR)" />
+      <PageMeta title="Leave Requests (Admin)" />
       <main>
-        <PageBreadcrumb title="Leave Manage (HR)" subtitle="Menu" />
+        <PageBreadcrumb title="Leave Requests (Admin)" subtitle="Menu" />
         <LeaveCard />
         <LeaveTabel />
         <Modal />

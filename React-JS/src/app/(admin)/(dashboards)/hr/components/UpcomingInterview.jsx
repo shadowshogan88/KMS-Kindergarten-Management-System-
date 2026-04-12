@@ -8,7 +8,7 @@ import { LuCalendar, LuClock, LuEllipsisVertical } from 'react-icons/lu';
 const interviews = [{
   id: 1,
   name: 'James Krogman',
-  email: 'james@tailwick.com',
+  email: 'james@tinytrack.com',
   image: user1,
   date: '25 Nov',
   time: '02:41 pm',
@@ -17,7 +17,7 @@ const interviews = [{
 }, {
   id: 2,
   name: 'Michael Scott',
-  email: 'michaelScott@tailwick.com',
+  email: 'michaelScott@tinytrack.com',
   image: user2,
   date: '05 Dec',
   time: '01:23 pm',
@@ -26,7 +26,7 @@ const interviews = [{
 }, {
   id: 3,
   name: 'Denise Ledford',
-  email: 'ledford@tailwick.com',
+  email: 'ledford@tinytrack.com',
   image: user3,
   date: '27 Nov',
   time: '11:59 pm',
@@ -35,7 +35,7 @@ const interviews = [{
 }, {
   id: 4,
   name: 'Gladys Smith',
-  email: 'gap-4@tailwick.com',
+  email: 'gap-4@tinytrack.com',
   image: user5,
   date: '07 Dec',
   time: '05:19 pm',

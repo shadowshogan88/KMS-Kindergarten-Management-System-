@@ -1,28 +1,39 @@
 import React from 'react';
 import { LuClock, LuOctagonX, LuRefreshCw } from 'react-icons/lu';
-const workDetails = [{
-  id: 1,
-  value: 187,
-  label: 'Approved Hours',
-  icon: LuClock,
-  textColor: 'text-info',
-  bgColor: 'bg-info/10'
-}, {
-  id: 2,
-  value: 19,
-  label: 'Rejected Hours',
-  icon: LuOctagonX,
-  textColor: 'text-danger',
-  bgColor: 'bg-danger/10'
-}, {
-  id: 3,
-  value: 32,
-  label: 'Pending Hours',
-  icon: LuRefreshCw,
-  textColor: 'text-warning',
-  bgColor: 'bg-warning/10'
-}];
+import { useMemo } from 'react';
+import { useStaffAttendance } from '../attendanceContext';
 const EmployeeWorkDetails = () => {
+  const { records } = useStaffAttendance();
+  const stats = useMemo(() => {
+    const present = records.filter(r => r.status === 'PRESENT').length;
+    const absent = records.filter(r => r.status === 'ABSENT').length;
+    const leave = records.filter(r => r.status === 'LEAVE').length;
+    return { present, absent, leave };
+  }, [records]);
+
+  const workDetails = [{
+    id: 1,
+    value: stats.present,
+    label: 'Present Days',
+    icon: LuClock,
+    textColor: 'text-info',
+    bgColor: 'bg-info/10'
+  }, {
+    id: 2,
+    value: stats.absent,
+    label: 'Absent Days',
+    icon: LuOctagonX,
+    textColor: 'text-danger',
+    bgColor: 'bg-danger/10'
+  }, {
+    id: 3,
+    value: stats.leave,
+    label: 'Leave Days',
+    icon: LuRefreshCw,
+    textColor: 'text-warning',
+    bgColor: 'bg-warning/10'
+  }];
+
   return <div className="grid lg:grid-cols-3 grid-cols-1 gap-5 mb-5">
       {workDetails.map(detail => {
       const Icon = detail.icon;

@@ -12,7 +12,7 @@ const Cta = () => {
           </div>
 
           <div className="flex p-1 lg:w-96 md:w-112 w-86 rounded-md  bg-default-200 relative mb-6 lg:mt-0 mt-4 h-12">
-            <input type="email" placeholder="tailwick@themesdesign.in" className="px-3 text-sm border-0 ring-0 bg-transparent" />
+            <input type="email" placeholder="tinytrack@synckbd.in" className="px-3 text-sm border-0 ring-0 bg-transparent" />
             <button type="button" className="absolute end-1 top-1.25 btn text-white bg-gradient-to-r from-primary to-purple-500 hover:from-purple-500 hover:to-primary border-0">
               Subscribe Now
             </button>

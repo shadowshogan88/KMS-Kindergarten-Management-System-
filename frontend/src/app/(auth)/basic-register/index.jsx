@@ -10,15 +10,15 @@ const Index = () => {
         <div className="card md:w-lg w-screen z-10">
           <div className="text-center px-10 py-12">
             <Link to="/index" className="flex justify-center">
-              <img src={logoDark} alt="logo dark" className="h-6 flex dark:hidden" width={111} />
-              <img src={logoLight} alt="logo light" className="h-6 hidden dark:flex" width={111} />
+              <img src={logoDark} alt="logo dark" className="h-12 w-44 object-contain flex dark:hidden" />
+              <img src={logoLight} alt="logo light" className="h-12 w-44 object-contain hidden dark:flex" />
             </Link>
 
             <div className="mt-8 text-center">
               <h4 className="mb-2.5 text-xl font-semibold text-primary">
                 Create your free account
               </h4>
-              <p className="text-base text-default-500">Get your free Tailwick account now</p>
+              <p className="text-base text-default-500">Get your free TinyTrack account now</p>
             </div>
 
             <form action="/index" className="text-left w-full mt-10">
@@ -44,7 +44,7 @@ const Index = () => {
               </div>
 
               <p className="italic text-sm font-medium text-default-500">
-                By registering you agree to the Tailwick{' '}
+                By registering you agree to the TinyTrack{' '}
                 <Link to="#" className="underline">
                   Terms of Use
                 </Link>

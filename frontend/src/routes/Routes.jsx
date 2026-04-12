@@ -54,6 +54,8 @@ const Ecommerce = lazy(() => import('@/app/(admin)/(dashboards)/index'));
 
 // portal
 const PortalDashboard = lazy(() => import('@/app/(portal)/dashboard'));
+const PortalProfile = lazy(() => import('@/app/(portal)/profile'));
+const PortalChangePassword = lazy(() => import('@/app/(portal)/change-password'));
 const PortalLogout = lazy(() => import('@/app/(portal)/logout'));
 const PortalDepartment = lazy(() => import('@/app/(portal)/department'));
 const PortalClass = lazy(() => import('@/app/(portal)/class'));
@@ -200,23 +202,79 @@ export const layoutsRoutes = [{
 }, {
   path: '/attendance',
   name: 'Attendances',
-  element: <Attendances />
+  element: <Navigate to="/portal/staff-attendance" replace />
 }, {
   path: '/attendance-main',
   name: 'AttemdanceMain',
-  element: <AttemdanceMain />
+  element: <Navigate to="/portal/staff-attendance-main" replace />
 }, {
   path: '/create-leave',
   name: 'CreateLeave',
-  element: <CreateLeave />
+  element: <Navigate to="/portal/create-leave" replace />
 }, {
   path: '/create-leave-employee',
   name: 'CreateLeaveEmployee',
-  element: <CreateLeaveEmployee />
+  element: <Navigate to="/portal/create-leave-employee" replace />
 }, {
   path: '/create-payslip',
   name: 'CreatePayslip',
+  element: <Navigate to="/portal/create-payslip" replace />
+}, {
+  path: '/portal/staff-attendance',
+  name: 'PortalStaffAttendance',
+  element: <Attendances />
+}, {
+  path: '/portal/staff-attendance-main',
+  name: 'PortalStaffAttendanceMain',
+  element: <AttemdanceMain />
+}, {
+  path: '/portal/create-leave',
+  name: 'PortalCreateLeave',
+  element: <CreateLeave />
+}, {
+  path: '/portal/create-leave-employee',
+  name: 'PortalCreateLeaveEmployee',
+  element: <CreateLeaveEmployee />
+}, {
+  path: '/portal/create-payslip',
+  name: 'PortalCreatePayslip',
   element: <CreatePayslip />
+}, {
+  path: '/portal/employee',
+  name: 'PortalEmployee',
+  element: <Employee />
+}, {
+  path: '/portal/staff-holidays',
+  name: 'PortalStaffHolidays',
+  element: <Holidays />
+}, {
+  path: '/portal/leave',
+  name: 'PortalLeave',
+  element: <Leave />
+}, {
+  path: '/portal/leave-employee',
+  name: 'PortalLeaveEmployee',
+  element: <LeaveEmployee />
+}, {
+  path: '/portal/payroll-employee-salary',
+  name: 'PortalPayrollEmployeeSalary',
+  element: <PayrollEmplyoeeSalary />
+}, {
+  path: '/portal/payroll-payslip',
+  name: 'PortalPayrollPayslip',
+  element: <PayRollSlip />
+}, {
+  path: '/portal/sales-estimates',
+  name: 'PortalSalesEstimate',
+  element: <SalesEstimate />
+}, {
+  path: '/portal/sales-expenses',
+  name: 'PortalSalesExpense',
+  element: <SalesExpense />
+}, {
+  path: '/portal/sales-payments',
+  name: 'PortalSalePayment',
+  element: <SalePayment />
 }, {
   path: '/portal/department',
   name: 'PortalDepartment',
@@ -436,39 +494,39 @@ export const layoutsRoutes = [{
 }, {
   path: '/employee',
   name: 'Employee',
-  element: <Employee />
+  element: <Navigate to="/portal/employee" replace />
 }, {
   path: '/holidays',
   name: 'Holidays',
-  element: <Holidays />
+  element: <Navigate to="/portal/staff-holidays" replace />
 }, {
   path: '/leave',
   name: 'Leave',
-  element: <Leave />
+  element: <Navigate to="/portal/leave" replace />
 }, {
   path: '/leave-employee',
   name: 'LeaveEmployee',
-  element: <LeaveEmployee />
+  element: <Navigate to="/portal/leave-employee" replace />
 }, {
   path: '/payroll-employee-salary',
   name: 'PayrollEmplyoeeSalary',
-  element: <PayrollEmplyoeeSalary />
+  element: <Navigate to="/portal/payroll-employee-salary" replace />
 }, {
   path: '/payroll-payslip',
   name: 'PayRollSlip',
-  element: <PayRollSlip />
+  element: <Navigate to="/portal/payroll-payslip" replace />
 }, {
   path: '/sales-estimates',
   name: 'SalesEstimate',
-  element: <SalesEstimate />
+  element: <Navigate to="/portal/sales-estimates" replace />
 }, {
   path: '/sales-expenses',
   name: 'SalesExpense',
-  element: <SalesExpense />
+  element: <Navigate to="/portal/sales-expenses" replace />
 }, {
   path: '/sales-payments',
   name: 'SalePayment',
-  element: <SalePayment />
+  element: <Navigate to="/portal/sales-payments" replace />
 }, {
   path: '/add-new',
   name: 'InvoiceAddNew',
@@ -521,15 +579,23 @@ export const layoutsRoutes = [{
   path: '/hr',
   name: 'Hr',
   element: <Hr />
-}, {
-  path: '/portal/dashboard',
-  name: 'PortalDashboard',
-  element: <PortalDashboard />
-}, {
-  path: '/sidenav-compact',
-  name: 'SideNavCompact',
-  element: <SideNavCompact />
-}, {
+  }, {
+    path: '/portal/dashboard',
+    name: 'PortalDashboard',
+    element: <PortalDashboard />
+  }, {
+    path: '/portal/profile',
+    name: 'PortalProfile',
+    element: <PortalProfile />
+  }, {
+    path: '/portal/change-password',
+    name: 'PortalChangePassword',
+    element: <PortalChangePassword />
+  }, {
+    path: '/sidenav-compact',
+    name: 'SideNavCompact',
+    element: <SideNavCompact />
+  }, {
   path: '/sidenav-dark',
   name: 'SideNavDark',
   element: <SideNavDark />

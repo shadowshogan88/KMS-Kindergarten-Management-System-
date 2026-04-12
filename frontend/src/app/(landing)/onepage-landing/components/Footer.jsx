@@ -134,7 +134,7 @@ const Footer = () => {
 
           <div className="lg:col-span-3">
             <div className="flex p-1 lg:w-96 md:w-90 w-86 rounded-md border border-white/14 bg-card/4 relative mb-6">
-              <input type="email" placeholder="tailwick@themesdesign.in" className="px-3 text-sm text-white border-none bg-transparent focus:outline-none focus:ring-0" />
+              <input type="email" placeholder="tinytrack@synckbd.in" className="px-3 text-sm text-white border-none bg-transparent focus:outline-none focus:ring-0" />
               <button type="button" className="absolute right-2 btn text-white bg-primary hover:bg-primary/90">
                 Subscribe Now
               </button>
@@ -142,7 +142,7 @@ const Footer = () => {
 
             <div>
               <p className="mb-1 text-sm text-default-400">Support Email</p>
-              <h5 className="text-lg text-white">support@themesdesign.in</h5>
+              <h5 className="text-lg text-white">support@synckbd.in</h5>
             </div>
 
             <div className="mt-6">
@@ -183,7 +183,7 @@ const Footer = () => {
 
         <div className="text-base mt-12 text-center text-default-400">
           <p>
-            {currentYear} © Tailwick. Design & Develop by{' '}
+            {currentYear} © TinyTrack. Design & Develop by <br />
             <Link to="#" className="underline text-white hover:text-primary">
               {developedBy}
             </Link>

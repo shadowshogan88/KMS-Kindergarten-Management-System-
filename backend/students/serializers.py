@@ -4,6 +4,7 @@ from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
 from .models import ParentProfile, Student
+from .emails import send_student_credentials_email
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -63,7 +64,12 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        create_user = bool(attrs.get("create_user"))
+        is_creating = self.instance is None
+        create_user = bool(attrs.get("create_user")) if "create_user" in attrs else False
+        # If create_user is not provided on create, default it to True (portal behavior).
+        if is_creating and "create_user" not in (getattr(self, "initial_data", {}) or {}):
+            create_user = True
+            attrs["create_user"] = True
         if create_user and attrs.get("user"):
             raise serializers.ValidationError({"user": "Do not pass user when create_user=true."})
 
@@ -87,6 +93,8 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         create_user = bool(validated_data.pop("create_user", False))
+        if "create_user" not in (getattr(self, "initial_data", {}) or {}):
+            create_user = True
         desired_username = (validated_data.pop("username", "") or "").strip()
         desired_password = (validated_data.pop("password", "") or "").strip()
         desired_email = (validated_data.get("email", "") or "").strip()
@@ -123,9 +131,14 @@ class StudentSerializer(serializers.ModelSerializer):
             first_name=student.first_name,
             last_name=student.last_name,
         )
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
 
         student.user = user
         student.save(update_fields=["user", "email", "phone"])
+
+        # Send credentials email (non-blocking in dev by default; controlled by EMAIL_FAIL_SILENTLY).
+        send_student_credentials_email(student=student, username=username, password=password)
 
         self._generated_username = username
         self._generated_password = password

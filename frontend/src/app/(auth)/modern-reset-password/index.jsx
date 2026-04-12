@@ -69,7 +69,7 @@ const Index = () => {
             <div className="my-auto">
               <div className="mt-8">
                 <h4 className="mb-2 text-primary text-xl font-semibold">Forgot Password?</h4>
-                <p className="text-base mb-8 text-default-500">Reset your Tailwick password</p>
+                <p className="text-base mb-8 text-default-500">Reset your TinyTrack password</p>
               </div>
 
               <div className="p-3 mb-6 text-warning rounded-md bg-warning/15">
@@ -105,11 +105,11 @@ const Index = () => {
             <div className="mt-5 flex justify-center">
               <span className="text-sm text-default-500 flex gap-1">
                 <IconifyIcon icon="lucide:copyright" className="w-4 h-4 align-middle" />
-                2025 Tailwick. Crafted with
+                2025 TinyTrack. Crafted with
                 <IconifyIcon icon="tabler:heart-filled" className="w-4 h-4 text-danger align-middle" />
                 by{' '}
-                <Link to="https://themesdesign.in/" target="_blank" rel="noopener noreferrer" className="text-default-800 hover:text-primary transition duration-200 underline">
-                  Themesdesign
+                <Link to="https://synckbd.in/" target="_blank" rel="noopener noreferrer" className="text-default-800 hover:text-primary transition duration-200 underline">
+                  SynckBD
                 </Link>
               </span>
             </div>

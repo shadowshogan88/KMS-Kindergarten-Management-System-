@@ -39,7 +39,7 @@ const ProductDetails = () => {
         <li>
           Seller:{' '}
           <Link to="#!" className="font-medium text-sm">
-            Themesdesign
+            SynckBD
           </Link>
         </li>
         <li>

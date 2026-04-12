@@ -7,15 +7,15 @@ import logoLight from '@/assets/images/logo-light.png';
 import logoSm from '@/assets/images/logo-sm.png';
 const Sidebar = () => {
   return <aside id="app-menu" className="app-menu">
-      <Link to="/index" className="logo-box sticky top-0 flex min-h-topbar-height items-center justify-start px-6 backdrop-blur-xs">
+      <Link to="/portal/dashboard" className="logo-box sticky top-0 flex min-h-topbar-height items-center justify-start px-6 backdrop-blur-xs">
         <div className="logo-light">
-          <img src={logoLight} className="logo-lg h-6" alt="Light logo" width={111} />
-          <img src={logoSm} className="logo-sm h-6" alt="Small logo" />
+          <img src={logoLight} className="logo-lg h-10 w-44 object-contain" alt="Light logo" />
+          <img src={logoSm} className="logo-sm h-10 w-10 object-contain" alt="Small logo" />
         </div>
 
         <div className="logo-dark">
-          <img src={logoDark} className="logo-lg h-6" alt="Dark logo" width={111} />
-          <img src={logoSm} className="logo-sm h-6" alt="Small logo" />
+          <img src={logoDark} className="logo-lg h-10 w-44 object-contain" alt="Dark logo" />
+          <img src={logoSm} className="logo-sm h-10 w-10 object-contain" alt="Small logo" />
         </div>
       </Link>
 

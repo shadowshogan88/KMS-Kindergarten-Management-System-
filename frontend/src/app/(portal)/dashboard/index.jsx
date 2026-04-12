@@ -34,6 +34,20 @@ const PortalDashboard = () => {
 
   return (
     <>
+      {user?.must_change_password ? (
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-5">
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-medium">For security, please change your password after your first login.</span>{' '}
+            <button
+              type="button"
+              className="ml-2 inline-flex items-center rounded-md bg-amber-900 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => navigate('/portal/change-password')}
+            >
+              Change now
+            </button>
+          </div>
+        </div>
+      ) : null}
       {showWelcome ? (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-5">
           <div className="relative rounded-md border border-primary/20 bg-primary/10 px-4 py-3 pr-11 text-sm text-default-800">

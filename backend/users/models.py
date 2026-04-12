@@ -4,12 +4,14 @@ from django.db import models
 
 class User(AbstractUser):
     ROLE_ADMIN = "ADMIN"
+    ROLE_USER = "USER"
     ROLE_TEACHER = "TEACHER"
     ROLE_STUDENT = "STUDENT"
     ROLE_PARENT = "PARENT"
 
     ROLE_CHOICES = [
         (ROLE_ADMIN, "Admin"),
+        (ROLE_USER, "User"),
         (ROLE_TEACHER, "Teacher"),
         (ROLE_STUDENT, "Student"),
         (ROLE_PARENT, "Parent"),
@@ -17,6 +19,10 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_PARENT)
     phone = models.CharField(max_length=30, blank=True, default="")
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text="If true, user should be prompted to change password after login (no current password required).",
+    )
     portal_role = models.ForeignKey(
         "users.PortalRole",
         on_delete=models.SET_NULL,

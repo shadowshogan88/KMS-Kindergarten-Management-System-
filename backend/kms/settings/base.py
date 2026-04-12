@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "routines",
     "syllabus",
     "integrations",
+    "staff",
 ]
 
 MIDDLEWARE = [
@@ -96,6 +97,37 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 AUTH_USER_MODEL = "users.User"
+
+# Email (SMTP)
+SCHOOL_NAME = os.environ.get("SCHOOL_NAME", "KMS")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+FRONTEND_PORTAL_LOGIN_PATH = os.environ.get("FRONTEND_PORTAL_LOGIN_PATH", "/portal")
+
+SMTP_HOST = (os.environ.get("SMTP_HOST", "") or "").strip()
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = (os.environ.get("SMTP_USER", "") or "").strip()
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "1") == "1"
+SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "0") == "1"
+
+SMTP_ENABLED = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+
+DEFAULT_FROM_EMAIL = (os.environ.get("DEFAULT_FROM_EMAIL") or "").strip() or (SMTP_USER or "no-reply@example.com")
+SERVER_EMAIL = (os.environ.get("SERVER_EMAIL") or "").strip() or DEFAULT_FROM_EMAIL
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
+EMAIL_FAIL_SILENTLY = os.environ.get("DJANGO_EMAIL_FAIL_SILENTLY", "1" if DEBUG else "0") == "1"
+
+# Use SMTP only when SMTP is fully configured; otherwise keep console backend (dev-friendly + test-friendly).
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend" if SMTP_ENABLED else "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = SMTP_HOST or "localhost"
+EMAIL_PORT = SMTP_PORT
+EMAIL_HOST_USER = SMTP_USER
+EMAIL_HOST_PASSWORD = SMTP_PASSWORD
+EMAIL_USE_TLS = SMTP_USE_TLS
+EMAIL_USE_SSL = SMTP_USE_SSL
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

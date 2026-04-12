@@ -32,7 +32,7 @@ const Index = () => {
                 <div className="text-center px-10 py-12">
                   <div className="mt-8">
                     <h4 className="mb-2 text-primary text-xl font-semibold">Forgot Password?</h4>
-                    <p className="text-base mb-8 text-default-500">Reset your Tailwick password</p>
+                    <p className="text-base mb-8 text-default-500">Reset your TinyTrack password</p>
                   </div>
 
                   <div className="p-3 mb-6 text-warning rounded-md bg-warning/15">

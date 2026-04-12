@@ -21,7 +21,7 @@ export const useLayoutContext = () => {
 const LayoutProvider = ({
   children
 }) => {
-  const [settings, setSettings] = useLocalStorage('__TAILWICK_NEXT_CONFIG__', INIT_STATE);
+  const [settings, setSettings] = useLocalStorage('__TINYTRACK_NEXT_CONFIG__', INIT_STATE);
   const updateSettings = useCallback(_newSettings => {
     setSettings(prevSettings => ({
       ...prevSettings,

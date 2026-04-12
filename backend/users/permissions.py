@@ -13,6 +13,10 @@ class IsAdmin(IsRole):
     allowed_roles = {"ADMIN"}
 
 
+class IsUser(IsRole):
+    allowed_roles = {"USER"}
+
+
 class IsTeacher(IsRole):
     allowed_roles = {"TEACHER"}
 

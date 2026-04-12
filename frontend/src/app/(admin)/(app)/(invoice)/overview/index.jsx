@@ -53,7 +53,7 @@ const Index = () => {
                     <div className="size-16 bg-default-100 flex items-center justify-center rounded-md">
                       <img src={logosm} alt="" className="h-8" width={32} />
                     </div>
-                    <h5 className="mt-4 mb-1 card-title">Themesdesign</h5>
+                    <h5 className="mt-4 mb-1 card-title">SynckBD</h5>
                     <p className="text-default-500">IT Software Company</p>
                   </div>
 
@@ -62,12 +62,12 @@ const Index = () => {
                       Legal Registration No: <span className="font-semibold">2155420</span>
                     </p>
                     <p className="mb-1 truncate text-default-500">
-                      Email: <span className="font-semibold">tailwick@themesdesign.in</span>
+                      Email: <span className="font-semibold">tinytrack@synckbd.in</span>
                     </p>
                     <p className="mb-1 text-default-500">
                       Website:{' '}
-                      <Link to="https://themesdesign.in" target="_blank" className="font-semibold underline text-primary">
-                        www.themesdesign.in
+                      <Link to="https://synckbd.in" target="_blank" className="font-semibold underline text-primary">
+                        www.synckbd.in
                       </Link>
                     </p>
                     <p className="text-default-500">

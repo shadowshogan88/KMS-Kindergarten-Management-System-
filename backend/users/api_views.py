@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -16,6 +17,34 @@ from .permissions import IsAdmin
 @permission_classes([IsAuthenticated])
 def me(request):
     return Response(MeSerializer(request.user).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    user = request.user
+
+    new_password = (request.data.get("new_password") or "").strip()
+    confirm_password = (request.data.get("confirm_password") or "").strip()
+
+    if not new_password:
+        return Response({"detail": "new_password is required."}, status=status.HTTP_400_BAD_REQUEST)
+    if confirm_password and confirm_password != new_password:
+        return Response({"detail": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_password(new_password, user=user)
+    except Exception as e:
+        # Django can return a list of messages; keep response simple + friendly.
+        msgs = getattr(e, "messages", None)
+        if msgs:
+            return Response({"detail": " ".join(str(m) for m in msgs)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": str(e) or "Invalid password."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.must_change_password = False
+    user.save(update_fields=["password", "must_change_password"])
+    return Response({"detail": "Password updated successfully."})
 
 
 @api_view(["GET"])

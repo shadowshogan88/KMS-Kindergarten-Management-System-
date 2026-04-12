@@ -32,7 +32,7 @@ const Index = () => {
               <div className="lg:col-span-5">
                 <div className="text-center px-10 py-12">
                   <h4 className="mb-3 text-xl font-semibold text-purple-500">Welcome Back !</h4>
-                  <p className="text-base text-default-500">Sign in to continue to Tailwick.</p>
+                  <p className="text-base text-default-500">Sign in to continue to TinyTrack.</p>
 
                   <form action="/index" className="text-left w-full mt-10">
                     <div className="mb-4">

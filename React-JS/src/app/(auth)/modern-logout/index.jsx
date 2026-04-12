@@ -74,7 +74,7 @@ const Index = () => {
                 </div>
                 <h4 className="mb-2 text-primary text-xl font-semibold">You are Logged Out</h4>
                 <p className="mb-8 text-base text-default-500">
-                  Thank you for using tailwick admin template
+                  Thank you for using tinytrack admin template
                 </p>
               </div>
 
@@ -86,11 +86,11 @@ const Index = () => {
             <div className="mt-5 flex justify-center">
               <span className="text-sm text-default-500 flex gap-1">
                 <IconifyIcon icon="lucide:copyright" className="w-4 h-4 align-middle" />
-                2025 Tailwick. Crafted with
+                2025 TinyTrack. Crafted with
                 <IconifyIcon icon="tabler:heart-filled" className="w-4 h-4 text-danger align-middle" />
                 by{' '}
-                <Link to="https://themesdesign.in/" target="_blank" rel="noopener noreferrer" className="text-default-800 hover:text-primary transition duration-200 underline">
-                  Themesdesign
+                <Link to="https://synckbd.in/" target="_blank" rel="noopener noreferrer" className="text-default-800 hover:text-primary transition duration-200 underline">
+                  SynckBD
                 </Link>
               </span>
             </div>

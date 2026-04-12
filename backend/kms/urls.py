@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/v1/", include("routines.urls")),
     path("api/v1/", include("syllabus.urls")),
     path("api/v1/", include("integrations.urls")),
+    path("api/v1/", include("staff.urls")),
 ]
 
 if settings.DEBUG:

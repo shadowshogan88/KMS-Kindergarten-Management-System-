@@ -10,7 +10,7 @@ const estimatesData = [{
   status: 'Accepted'
 }, {
   id: '#TWE20015421',
-  clientName: 'Themesdesign',
+  clientName: 'SynckBD',
   estimateBy: 'Admin',
   estimateDate: '08 Nov, 2023',
   expiryDate: '08 Nov, 2023',

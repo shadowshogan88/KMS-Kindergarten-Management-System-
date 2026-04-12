@@ -23,6 +23,7 @@ class MeSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "phone",
+            "must_change_password",
             "portal_role_id",
             "portal_role_name",
             "portal_permissions",

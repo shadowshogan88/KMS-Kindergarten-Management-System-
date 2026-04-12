@@ -2,7 +2,7 @@ import IconifyIcon from '@/components/client-wrapper/IconifyIcon';
 import { LuEllipsis, LuEye, LuHeart, LuSquarePen, LuTrash2 } from 'react-icons/lu';
 import { Link } from 'react-router';
 const sellers = [{
-  name: 'Themesdesign',
+  name: 'SynckBD',
   owner: 'Paula Keenan',
   sales: '4.5k',
   products: 310,

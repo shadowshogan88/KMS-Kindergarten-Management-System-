@@ -120,10 +120,10 @@ const Index = () => {
                 <div className="text-sm">
                   <p className="mb-2 text-default-500">
                     For any inquiries, please contact us at +(252) 0123 456 7890 or reach out via
-                    email at tailwick@themesdesign.in.
+                    email at tinytrack@synckbd.in.
                   </p>
                   <p className="mb-2 text-default-500">Best Regards,</p>
-                  <p className="mb-2 text-default-500">Themesdesign</p>
+                  <p className="mb-2 text-default-500">SynckBD</p>
                   <p className="text-default-500">
                     Founder &amp; CEO:{' '}
                     <span className="font-semibold text-default-800">Paula Keenan</span>

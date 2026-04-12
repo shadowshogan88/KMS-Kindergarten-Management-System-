@@ -6,7 +6,7 @@ const Contact = () => {
         <div className="lg:flex justify-between items-center">
           <div>
             <h1 className="mb-4 capitalize text-blue-50 leading-normal text-4xl font-semibold">
-              Ready to get started with Tailwick
+              Ready to get started with TinyTrack
             </h1>
 
             <p className="text-lg text-blue-200">

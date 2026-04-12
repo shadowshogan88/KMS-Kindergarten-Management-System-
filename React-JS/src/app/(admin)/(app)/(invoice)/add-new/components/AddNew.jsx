@@ -65,14 +65,14 @@ const AddNew = () => {
               <label htmlFor="emailInvoiceInput" className="inline-block mb-2 text-sm text-default-800 font-medium">
                 Email
               </label>
-              <input type="email" id="emailInvoiceInput" className="form-input" placeholder="tailwick@themesdesign.in" required />
+              <input type="email" id="emailInvoiceInput" className="form-input" placeholder="tinytrack@synckbd.in" required />
             </div>
 
             <div className="col-span-1">
               <label htmlFor="websiteInput" className="inline-block mb-2 text-default-800 text-sm font-medium">
                 Website
               </label>
-              <input type="text" id="websiteInput" className="form-input" placeholder="www.themesdesign.in" required />
+              <input type="text" id="websiteInput" className="form-input" placeholder="www.synckbd.in" required />
             </div>
 
             <div className="col-span-1">
