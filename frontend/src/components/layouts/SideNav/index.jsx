@@ -13,7 +13,7 @@ const Sidebar = () => {
   const isPortalDashboard = pathname === '/portal/dashboard' || pathname.startsWith('/portal/dashboard/');
   const logoLightSrc = isPortalDashboard ? logoDashboard : logoLight;
   const logoDarkSrc = isPortalDashboard ? logoDashboard : logoDark;
-  const logoBoxClass = isPortalDashboard ? 'logo-lg h-12 w-full max-w-none object-cover' : 'logo-lg h-12 w-auto max-w-[220px] object-contain';
+  const logoBoxClass = isPortalDashboard ? 'logo-lg h-12 w-full max-w-none object-cover object-top' : 'logo-lg h-12 w-auto max-w-[220px] object-contain';
   const logoWrapClass = isPortalDashboard ? 'flex w-full items-center overflow-hidden rounded' : '';
   return <aside id="app-menu" className="app-menu">
       <Link to={homeHref} className="logo-box sticky top-0 flex min-h-topbar-height items-center justify-start px-6 backdrop-blur-xs">
