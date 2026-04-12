@@ -32,7 +32,7 @@ const Index = () => {
 
               <div className="mt-8 text-center">
                 <h4 className="mb-2.5 text-xl font-semibold text-primary">Welcome Back !</h4>
-                <p className="text-base text-default-500">Sign in to continue to Tailwick.</p>
+                <p className="text-base text-default-500">Sign in to continue to TinyTrack.</p>
               </div>
 
               <form action="/index" className="text-left w-full mt-10">

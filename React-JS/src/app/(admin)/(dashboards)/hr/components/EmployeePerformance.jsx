@@ -8,7 +8,7 @@ const EmployeePerformance = () => {
   const employeesData = [{
     id: 'TW-1001',
     name: 'Kristen Redden',
-    email: 'kredden@tailwick.com',
+    email: 'kredden@tinytrack.com',
     designation: 'Designer',
     performance: 'Good',
     status: 'Active',
@@ -16,7 +16,7 @@ const EmployeePerformance = () => {
   }, {
     id: 'TW-1002',
     name: 'Howard George',
-    email: 'george@tailwick.com',
+    email: 'george@tinytrack.com',
     designation: 'ASP.Net Developer',
     performance: 'Low',
     status: 'Active',
@@ -24,7 +24,7 @@ const EmployeePerformance = () => {
   }, {
     id: 'TW-1003',
     name: 'Laura Dawson',
-    email: 'laura@tailwick.com',
+    email: 'laura@tinytrack.com',
     designation: 'React Developer',
     performance: 'Good',
     status: 'Active',
@@ -32,7 +32,7 @@ const EmployeePerformance = () => {
   }, {
     id: 'TW-1004',
     name: 'Joseph Morgan',
-    email: 'morgan@tailwick.com',
+    email: 'morgan@tinytrack.com',
     designation: 'Angular Developer',
     performance: 'Good',
     status: 'Disabled',
@@ -40,7 +40,7 @@ const EmployeePerformance = () => {
   }, {
     id: 'TW-1005',
     name: 'Jeremy Rose',
-    email: 'rose@tailwick.com',
+    email: 'rose@tinytrack.com',
     designation: 'UI / UX Designer',
     performance: 'Low',
     status: 'Disabled',

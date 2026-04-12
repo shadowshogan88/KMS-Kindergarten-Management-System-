@@ -96,7 +96,7 @@ const Footer = () => {
             <p className="mb-5 text-sm text-default-500">
               Premium Multipurpose Admin & Dashboard Template You can build any type of web
               application like eCommerce, CRM, CMS, Project management apps, Admin Panels, etc using
-              Tailwick.
+              TinyTrack.
             </p>
 
             <div className="flex flex-wrap gap-3 md:mt-0 mt-5">
@@ -125,8 +125,8 @@ const Footer = () => {
 
       <div className="lg:py-10 py-6 mt-12 text-center text-default-500 text-base border-t border-default-200">
         <p>
-          {currentYear} © Tailwick. Design & Develop by{' '}
-          <Link to="https://themesdesign.in/" target="_blank" rel="noopener noreferrer" className="underline text-default-800 font-bold transition-all hover:text-primary">
+          {currentYear} © TinyTrack. Design & Develop by <br />
+          <Link to="https://synckbd.in/" target="_blank" rel="noopener noreferrer" className="underline text-default-800 font-bold transition-all hover:text-primary">
             {developedBy}
           </Link>
         </p>

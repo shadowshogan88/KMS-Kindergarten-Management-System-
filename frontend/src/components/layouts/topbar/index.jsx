@@ -10,17 +10,15 @@ import {
   LuCalendarDays,
   LuClock,
   LuCreditCard,
-  LuGem,
   LuLogOut,
-  LuMail,
   LuMegaphone,
-  LuMessagesSquare,
   LuMoveRight,
   LuPresentation,
   LuSchool,
   LuUserX
 } from 'react-icons/lu';
 import { apiJson } from '@/utils/api';
+import { authStorage } from '@/utils/auth';
 
 const tabs = [{
   id: 'all',
@@ -106,26 +104,32 @@ const typeMeta = type => {
   }
 };
 const profileMenu = [{
-  icon: <LuMail className="size-4" />,
-  label: 'Inbox',
-  to: '/mailbox',
-  badge: '15'
-}, {
-  icon: <LuMessagesSquare className="size-4" />,
-  label: 'Chat',
-  to: '/chat'
-}, {
-  icon: <LuGem className="size-4" />,
-  label: 'Upgrade Pro',
-  to: '/pricing'
-}, {
-  divider: true
-}, {
   icon: <LuLogOut className="size-4" />,
   label: 'Sign Out',
   to: '/portal/logout'
 }];
 const Topbar = () => {
+  const user = authStorage.getUser();
+  const [avatarOverride, setAvatarOverride] = useState(() => authStorage.getAvatar());
+  const fullName = useMemo(() => {
+    const first = (user?.first_name || '').trim();
+    const last = (user?.last_name || '').trim();
+    const combined = `${first} ${last}`.trim();
+    return combined || user?.username || 'User';
+  }, [user?.first_name, user?.last_name, user?.username]);
+  const userType = useMemo(() => (user?.role || user?.portal_role_name || 'User'), [user?.portal_role_name, user?.role]);
+  const userAvatar = useMemo(() => avatarOverride || '/src/assets/images/user/avatar-1.png', [avatarOverride]);
+
+  useEffect(() => {
+    const refreshAvatar = () => setAvatarOverride(authStorage.getAvatar());
+    window.addEventListener('storage', refreshAvatar);
+    window.addEventListener('kms_avatar_updated', refreshAvatar);
+    return () => {
+      window.removeEventListener('storage', refreshAvatar);
+      window.removeEventListener('kms_avatar_updated', refreshAvatar);
+    };
+  }, []);
+
   const [activeTab, setActiveTab] = useState('all');
   const [unreadCount, setUnreadCount] = useState(0);
   const [allItems, setAllItems] = useState([]);
@@ -283,21 +287,21 @@ const Topbar = () => {
 
           <div className="topbar-item hs-dropdown relative inline-flex">
             <button className="cursor-pointer bg-pink-100 rounded-full">
-              <img src={avatar1} alt="user" className="hs-dropdown-toggle rounded-full size-9.5" />
+              <img src={userAvatar} alt="user" className="hs-dropdown-toggle rounded-full size-9.5" />
             </button>
             <div className="hs-dropdown-menu min-w-48">
               <div className="p-2">
-                <h6 className="mb-2 text-default-500">Welcome to Tailwick</h6>
-                <Link to="#!" className="flex gap-3">
+                <h6 className="mb-2 text-default-500">Welcome to TinyTrack</h6>
+                <a className="flex gap-3" href="/portal/profile" data-discover="true">
                   <div className="relative inline-block">
-                    <img src={avatar1} alt="user" className="size-12 rounded" />
+                    <img alt="user" className="size-12 rounded" src={userAvatar} />
                     <span className="-top-1 -end-1 absolute w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></span>
                   </div>
                   <div>
-                    <h6 className="mb-1 text-sm font-semibold text-default-800">Paula Keenan</h6>
-                    <p className="text-default-500">CEO & Founder</p>
+                    <h6 className="mb-1 text-sm font-semibold text-default-800">{fullName}</h6>
+                    <p className="text-default-500">{userType}</p>
                   </div>
-                </Link>
+                </a>
               </div>
 
               <div className="border-t border-default-200 -mx-2 my-2"></div>

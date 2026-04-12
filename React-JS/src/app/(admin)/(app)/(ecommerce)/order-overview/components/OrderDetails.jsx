@@ -16,7 +16,7 @@ const orderDetails = [{
   iconBg: 'bg-info/10 text-info'
 }, {
   title: 'Customer Info',
-  lines: ['Pauline Hylton', 'pauline@tailwick.com', '+(78) 120 4843 4714'],
+  lines: ['Pauline Hylton', 'pauline@tinytrack.com', '+(78) 120 4843 4714'],
   icon: <LuUser className="text-2xl rounded-full" />,
   iconBg: 'bg-warning/20 text-warning'
 }];

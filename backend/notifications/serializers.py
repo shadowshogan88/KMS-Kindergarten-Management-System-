@@ -112,7 +112,7 @@ class SendNotificationSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=User.ROLE_CHOICES),
         required=False,
         default=list,
-        help_text="Target roles (ADMIN/TEACHER/STUDENT/PARENT).",
+        help_text="Target roles (ADMIN/USER/TEACHER/STUDENT/PARENT).",
     )
     target_user_ids = serializers.ListField(
         child=serializers.IntegerField(),

@@ -16,7 +16,7 @@ const MailOffcanavs = () => {
             How Custom Software Can Solve Your Business Challenges
           </h3>
           <p className="text-default-500 dark:text-zink-200">
-            <Link to="#!">infrateach@tailwick.com</Link> (Aug 6, 2023, 9:04 PM)
+            <Link to="#!">infrateach@tinytrack.com</Link> (Aug 6, 2023, 9:04 PM)
           </p>
         </div>
 
@@ -48,7 +48,7 @@ const MailOffcanavs = () => {
                 <div className="grow">
                   <h6>Infra Teach</h6>
                   <p className="text-default-500 dark:text-zink-200">
-                    <Link to="#!">infrateach@tailwick.com</Link>
+                    <Link to="#!">infrateach@tinytrack.com</Link>
                   </p>
                 </div>
                 <div className="shrink-0">Aug 6, 2023, 9:04 PM</div>
@@ -84,7 +84,7 @@ const MailOffcanavs = () => {
                 <div className="grow">
                   <h6>Me</h6>
                   <p className="text-default-500 dark:text-zink-200">
-                    <Link to="#!">paulakeenan@tailwick.com</Link>
+                    <Link to="#!">paulakeenan@tinytrack.com</Link>
                   </p>
                 </div>
                 <div className="shrink-0">07 Nov, 2023, 10:14 PM</div>
@@ -106,7 +106,7 @@ const MailOffcanavs = () => {
                   help you?
                 </p>
                 <p className="mb-2 last:mb-0">Regards,</p>
-                <p className="mb-2 last:mb-0">Themesdesign</p>
+                <p className="mb-2 last:mb-0">SynckBD</p>
               </div>
             </div>
           </div>
@@ -120,13 +120,13 @@ const MailOffcanavs = () => {
                 <div className="grow">
                   <h6>Infra Teach</h6>
                   <p className="text-default-500 dark:text-zink-200">
-                    <Link to="#!">infrateach@tailwick.com</Link>
+                    <Link to="#!">infrateach@tinytrack.com</Link>
                   </p>
                 </div>
                 <div className="shrink-0">07 Nov, 2023, 10:42 PM</div>
               </div>
               <div className="p-4 mt-3 rounded-md bg-default-100 dark:bg-zink-600">
-                <p className="mb-2 last:mb-0">Hello, Themesdesign</p>
+                <p className="mb-2 last:mb-0">Hello, SynckBD</p>
                 <p className="mb-2 last:mb-0">
                   You are probably very busy, I totally understand that!
                 </p>

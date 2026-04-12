@@ -149,6 +149,24 @@ class ApiSmokeTests(APITestCase):
         login = self.client.post("/api/v1/auth/token/", {"username": username, "password": password}, format="json")
         self.assertEqual(login.status_code, 200)
 
+        # First-login should suggest password change.
+        access2 = login.data["access"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access2}")
+        me = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(me.status_code, 200)
+        self.assertTrue(me.data.get("must_change_password"))
+
+        # Change password without current password.
+        changed = self.client.post("/api/v1/auth/change-password/", {"new_password": "NewStrongPass123!"}, format="json")
+        self.assertEqual(changed.status_code, 200)
+        me2 = self.client.get("/api/v1/auth/me/")
+        self.assertEqual(me2.status_code, 200)
+        self.assertFalse(me2.data.get("must_change_password"))
+
+        # Login works with new password.
+        login2 = self.client.post("/api/v1/auth/token/", {"username": username, "password": "NewStrongPass123!"}, format="json")
+        self.assertEqual(login2.status_code, 200)
+
     def test_academic_attendance_sheet_and_bulk(self):
         res = self.client.post("/api/v1/auth/token/", {"username": "admin", "password": "admin1234"}, format="json")
         self.assertEqual(res.status_code, 200)

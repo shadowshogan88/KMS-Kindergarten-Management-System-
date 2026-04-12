@@ -27,7 +27,7 @@ const Index = () => {
                   <div className="mt-8">
                     <h4 className="mb-2 text-primary text-xl font-semibold">Verify Email</h4>
                     <p className="text-base mb-8 text-default-500">
-                      Please enter the 4 digit code sent to tailwick@themesdesign.in
+                      Please enter the 4 digit code sent to tinytrack@synckbd.in
                     </p>
                   </div>
 

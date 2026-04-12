@@ -9,7 +9,7 @@ const PageBreadcrumb = ({
 
       <div className="md:flex hidden items-center gap-2 text-sm font-semibold">
         <Link to="#" className="text-sm font-medium text-default-700">
-          Tailwick
+          TinyTrack
         </Link>
 
         <LuChevronRight className="text-sm flex-shrink-0 text-default-500 rtl:rotate-180" size={14} />

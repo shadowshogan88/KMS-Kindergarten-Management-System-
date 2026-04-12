@@ -13,7 +13,7 @@ const About = () => {
             <h1 className="mb-6 leading-relaxed text-4xl font-semibold text-default-800">
               Why Developers Should Embrace{' '}
               <span className="relative inline-block px-2 mx-2 before:block before:absolute before:-inset-1 before:-skew-y-6 before:bg-primary/10 before:rounded-md before:backdrop-blur-xl">
-                <span className="relative text-primary">Tailwick</span>
+                <span className="relative text-primary">TinyTrack</span>
               </span>{' '}
             </h1>
             <p className="text-lg text-default-500">

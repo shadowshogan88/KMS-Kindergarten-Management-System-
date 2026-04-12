@@ -257,17 +257,17 @@ const Topbar = () => {
             </button>
             <div className="hs-dropdown-menu min-w-48">
               <div className="p-2">
-                <h6 className="mb-2 text-default-500">Welcome to Tailwick</h6>
-                <Link to="#!" className="flex gap-3">
+                <h6 className="mb-2 text-default-500">Welcome to TinyTrack</h6>
+                <a className="flex gap-3" href="/portal/dashboard#!" data-discover="true">
                   <div className="relative inline-block">
-                    <img src={avatar1} alt="user" className="size-12 rounded" />
+                    <img alt="user" className="size-12 rounded" src="/src/assets/images/user/avatar-1.png" />
                     <span className="-top-1 -end-1 absolute w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></span>
                   </div>
                   <div>
                     <h6 className="mb-1 text-sm font-semibold text-default-800">Paula Keenan</h6>
                     <p className="text-default-500">CEO & Founder</p>
                   </div>
-                </Link>
+                </a>
               </div>
 
               <div className="border-t border-default-200 -mx-2 my-2"></div>

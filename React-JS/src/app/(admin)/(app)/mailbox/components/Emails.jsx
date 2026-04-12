@@ -52,7 +52,7 @@ const Emails = () => {
     read: false
   }, {
     id: 9,
-    sender: 'Themesdesign',
+    sender: 'SynckBD',
     subject: 'Your License expired',
     time: '11:54 PM',
     read: true
@@ -106,7 +106,7 @@ const Emails = () => {
     read: false
   }, {
     id: 18,
-    sender: 'Themesdesign',
+    sender: 'SynckBD',
     subject: 'Your License expired',
     time: '11:54 PM',
     read: true

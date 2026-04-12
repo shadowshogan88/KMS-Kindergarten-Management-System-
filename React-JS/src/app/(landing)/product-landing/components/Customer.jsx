@@ -9,7 +9,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 const testimonials = [{
   id: 1,
   name: 'Anthony Hobbs',
-  review: 'ThemesDesign used Anydesk to fix the bug in Flask and Django version. I highly recommend this product!',
+  review: 'SynckBD used Anydesk to fix the bug in Flask and Django version. I highly recommend this product!',
   avatar: avatar9,
   bgColor: 'bg-purple-500/10',
   rating: 5

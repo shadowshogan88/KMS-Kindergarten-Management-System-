@@ -215,6 +215,8 @@ class SubjectTeacherSerializer(serializers.ModelSerializer):
             role="TEACHER",
             phone=teacher.phone,
         )
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
 
         teacher.user = user
         teacher.save(update_fields=["user", "name", "phone", "updated_at"])

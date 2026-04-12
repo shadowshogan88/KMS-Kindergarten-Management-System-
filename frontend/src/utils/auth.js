@@ -46,6 +46,41 @@ export const authStorage = {
     if (this.isTemp()) sessionStorage.setItem('kms_access_token', access);
     else localStorage.setItem('kms_access_token', access);
   },
+  setUser(user) {
+    if (!user) return;
+    const raw = JSON.stringify(user);
+    if (this.isTemp()) sessionStorage.setItem('kms_user', raw);
+    else localStorage.setItem('kms_user', raw);
+  },
+  getAvatar() {
+    return sessionStorage.getItem('kms_user_avatar') || localStorage.getItem('kms_user_avatar') || '';
+  },
+  setAvatar(dataUrl) {
+    if (!dataUrl) return false;
+    try {
+      if (this.isTemp()) sessionStorage.setItem('kms_user_avatar', dataUrl);
+      else localStorage.setItem('kms_user_avatar', dataUrl);
+
+      try {
+        window.dispatchEvent(new Event('kms_avatar_updated'));
+      } catch {
+        // ignore
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  clearAvatar() {
+    sessionStorage.removeItem('kms_user_avatar');
+    localStorage.removeItem('kms_user_avatar');
+    try {
+      window.dispatchEvent(new Event('kms_avatar_updated'));
+    } catch {
+      // ignore
+    }
+  },
   clear() {
     sessionStorage.removeItem('kms_access_token');
     sessionStorage.removeItem('kms_refresh_token');
@@ -53,6 +88,8 @@ export const authStorage = {
     localStorage.removeItem('kms_access_token');
     localStorage.removeItem('kms_refresh_token');
     localStorage.removeItem('kms_user');
+    sessionStorage.removeItem('kms_user_avatar');
+    localStorage.removeItem('kms_user_avatar');
   },
 };
 
@@ -111,4 +148,29 @@ export const refreshAccess = async refreshToken => {
   }
 
   return { access: data.access };
+};
+
+export const changePassword = async ({ accessToken, newPassword, confirmPassword }) => {
+  const res = await fetch(`${getApiBaseUrl()}/auth/change-password/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      new_password: newPassword,
+      confirm_password: confirmPassword || '',
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      data?.detail ||
+      (typeof data === 'string' ? data : '') ||
+      `Password change failed (HTTP ${res.status})`;
+    throw new Error(message);
+  }
+
+  return data;
 };

@@ -16,7 +16,7 @@ const EventModal = () => {
               <label htmlFor="event-title" className="inline-block mb-2 text-base font-medium">
                 To
               </label>
-              <input type="text" id="event-title" className="form-input" placeholder="tailwink@themesdesign.in" />
+              <input type="text" id="event-title" className="form-input" placeholder="tailwink@synckbd.in" />
             </div>
 
             <div className="mb-4">

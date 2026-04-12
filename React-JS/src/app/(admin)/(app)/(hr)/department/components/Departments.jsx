@@ -5,35 +5,35 @@ const departmentsData = [{
   name: 'Web Development',
   head: 'Patricia Garcia',
   phone: '077 7317 7572',
-  email: 'PatriciaJGarcia@tailwick.com',
+  email: 'PatriciaJGarcia@tinytrack.com',
   employees: 15
 }, {
   id: 2,
   name: 'IOS Application Development',
   head: 'Frederiksen',
   phone: '61 53 62 05',
-  email: 'jonas@tailwick.com',
+  email: 'jonas@tinytrack.com',
   employees: 9
 }, {
   id: 3,
   name: 'Designing',
   head: 'Juliette Fecteau',
   phone: '07231 96 25 88',
-  email: 'JulietteFecteau@tailwick.com',
+  email: 'JulietteFecteau@tinytrack.com',
   employees: 11
 }, {
   id: 4,
   name: 'HR Management',
   head: 'Thomas Hatfield',
   phone: '0911 47 65 49',
-  email: 'thomas@tailwick.com',
+  email: 'thomas@tinytrack.com',
   employees: 3
 }, {
   id: 5,
   name: 'Accounts Management',
   head: 'Holly Kavanaugh',
   phone: '819 947 5846',
-  email: 'HollyKavanaugh@tailwick.com',
+  email: 'HollyKavanaugh@tinytrack.com',
   employees: 2
 }];
 const Departments = () => {

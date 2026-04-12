@@ -78,7 +78,7 @@ const Product = () => {
             <div className="flex justify-between flex-wrap gap-5">
               <h6 className="text-default-800 font-semibold text-[15px] flex items-center gap-1.25">
                 <LuStore className="size-4" />
-                Themesdesign
+                SynckBD
               </h6>
 
               <span className="flex items-center gap-1.25 text-default-700">

@@ -31,7 +31,7 @@ const Index = () => {
 
             <div className="mt-8 text-center">
               <h4 className="mb-2.5 text-xl font-semibold text-purple-500">Welcome Back !</h4>
-              <p className="text-base text-default-500">Sign in to continue to Tailwick.</p>
+              <p className="text-base text-default-500">Sign in to continue to TinyTrack.</p>
             </div>
 
             <form action="/index" className="text-left w-full mt-10">
@@ -57,7 +57,7 @@ const Index = () => {
               </div>
 
               <p className="italic text-sm font-medium text-default-500">
-                By registering you agree to the Tailwick{' '}
+                By registering you agree to the TinyTrack{' '}
                 <Link to="#" className="underline">
                   Terms of Use
                 </Link>

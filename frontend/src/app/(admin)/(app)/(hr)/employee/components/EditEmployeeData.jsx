@@ -48,7 +48,7 @@ const EditEmployeeData = () => {
                 <label htmlFor="emailInput" className="block mb-2 text-sm font-medium text-default-700">
                   Email
                 </label>
-                <input type="email" id="emailInput" placeholder="example@tailwick.com" defaultValue="willie@tailwick.com" className="form-input" />
+                <input type="email" id="emailInput" placeholder="example@tinytrack.com" defaultValue="willie@tinytrack.com" className="form-input" />
               </div>
 
               <div className="lg:col-span-6">

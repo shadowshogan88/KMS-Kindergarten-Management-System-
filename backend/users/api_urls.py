@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .api_views import PortalRolePermissionViewSet, PortalRoleViewSet, UserViewSet, me, teachers
+from .api_views import PortalRolePermissionViewSet, PortalRoleViewSet, UserViewSet, change_password, me, teachers
 
 router = DefaultRouter()
 router.register(r"portal-roles", PortalRoleViewSet, basename="portal_role")
@@ -13,6 +13,7 @@ urlpatterns = [
     path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/me/", me, name="me"),
+    path("auth/change-password/", change_password, name="change_password"),
     path("users/teachers/", teachers, name="teachers"),
 ]
 

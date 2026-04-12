@@ -29,7 +29,7 @@ const Feature = () => {
 
         <div className="mt-24">
           <h1 className="mb-16 capitalize text-white font-semibold text-4xl leading-normal">
-            Build for anyone who works with Tailwick
+            Build for anyone who works with TinyTrack
           </h1>
         </div>
       </div>

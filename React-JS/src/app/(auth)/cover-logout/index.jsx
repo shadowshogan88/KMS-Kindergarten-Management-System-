@@ -34,7 +34,7 @@ const Index = () => {
                 </div>
                 <h4 className="mb-2 text-primary text-xl font-semibold">You are Logged Out</h4>
                 <p className="mb-8 text-base text-default-500">
-                  Thank you for using tailwick admin template{' '}
+                  Thank you for using tinytrack admin template{' '}
                 </p>
               </div>
 
