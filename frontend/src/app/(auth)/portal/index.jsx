@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 
-import logoDark from '@/assets/images/logo-dark.png';
+import logoDark from '@/assets/images/logo-portal-dark.png';
 import logoLight from '@/assets/images/logo-light.png';
-import IconifyIcon from '@/components/client-wrapper/IconifyIcon';
 import PageMeta from '@/components/PageMeta';
 import { authStorage, fetchMe, tokenLogin } from '@/utils/auth';
 
 const PortalLogin = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const allowSwitchUser = useMemo(() => {
+    const search = location?.search || '';
+    return new URLSearchParams(search).get('switch') === '1';
+  }, [location?.search]);
 
   const [hasSession, setHasSession] = useState(() => Boolean(authStorage.getAccess()));
   const existingUser = useMemo(() => authStorage.getUser(), [hasSession]);
@@ -48,7 +51,14 @@ const PortalLogin = () => {
       else authStorage.setSessionTemp({ access, refresh, user });
 
       setHasSession(true);
-      navigate('/portal/dashboard', { replace: true, state: { welcome: true } });
+      if (user?.must_change_password) {
+        navigate('/portal/change-password', {
+          replace: true,
+          state: { message: 'For security, please change your password after your first login.' },
+        });
+      } else {
+        navigate('/portal/dashboard', { replace: true, state: { welcome: true } });
+      }
     } catch (e) {
       authStorage.clear();
       setHasSession(false);
@@ -64,6 +74,15 @@ const PortalLogin = () => {
     return () => clearTimeout(timer);
   }, [message]);
 
+  useEffect(() => {
+    if (!hasSession || allowSwitchUser) return;
+    if (existingUser?.must_change_password) {
+      navigate('/portal/change-password', { replace: true });
+    } else {
+      navigate('/portal/dashboard', { replace: true });
+    }
+  }, [allowSwitchUser, existingUser?.must_change_password, hasSession, navigate]);
+
   return (
     <>
       <PageMeta title="Portal Login" />
@@ -71,8 +90,8 @@ const PortalLogin = () => {
         <div className="card md:w-lg w-screen z-10">
           <div className="text-center px-10 py-12">
             <Link to="/index" className="flex justify-center">
-              <img src={logoDark} alt="logo dark" className="h-6 flex dark:hidden" width={111} />
-              <img src={logoLight} alt="logo light" className="h-6 hidden dark:flex" width={111} />
+              <img src={logoDark} alt="logo dark" className="h-16 w-auto object-contain flex dark:hidden" />
+              <img src={logoLight} alt="logo light" className="h-16 w-auto object-contain hidden dark:flex" />
             </Link>
 
             <div className="mt-8 text-center">
@@ -99,14 +118,20 @@ const PortalLogin = () => {
               {hasSession ? (
                 <div className="mb-4 rounded-md border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-default-800">
                   <div className="font-medium">You’re already signed in{existingUser?.username ? ` as ${existingUser.username}` : ''}.</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Link to="/portal/dashboard" className="btn bg-primary text-white">
-                      Continue to Dashboard
-                    </Link>
-                    <button
-                      type="button"
-                      className="btn border border-default-200 hover:bg-default-150"
-                      onClick={() => {
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {existingUser?.must_change_password ? (
+                        <Link to="/portal/change-password" className="btn bg-primary text-white">
+                          Continue to Change Password
+                        </Link>
+                      ) : (
+                        <Link to="/portal/dashboard" className="btn bg-primary text-white">
+                          Continue to Dashboard
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        className="btn border border-default-200 hover:bg-default-150"
+                        onClick={() => {
                         authStorage.clear();
                         setHasSession(false);
                         setUsername('');
@@ -178,42 +203,6 @@ const PortalLogin = () => {
                 <button type="submit" className="btn bg-primary text-white w-full" disabled={isSubmitting}>
                   {isSubmitting ? 'Signing In...' : 'Sign In'}
                 </button>
-              </div>
-
-              <div className="my-9 relative text-center before:absolute before:top-2.5 before:left-0 before:border-t before:border-t-default-200 before:w-full before:h-0.5 before:right-0 before:-z-0">
-                <h4 className="relative z-1 py-0.5 px-2 inline-block font-medium text-default-600 bg-card">
-                  Sign In With
-                </h4>
-              </div>
-
-              <div className="flex w-full justify-center items-center gap-2">
-                <Link
-                  to="#"
-                  className="btn border border-default-200 flex-grow hover:bg-default-150 shadow-sm hover:text-default-800"
-                >
-                  <IconifyIcon icon={'logos:google-icon'} />
-                  Use Google
-                </Link>
-
-                <Link
-                  to="#"
-                  className="btn border border-default-200 flex-grow hover:bg-default-150 shadow-sm hover:text-default-800"
-                >
-                  <IconifyIcon icon={'logos:apple'} className="text-mono" />
-                  Use Apple
-                </Link>
-              </div>
-
-              <div className="mt-10 text-center">
-                <p className="text-base text-default-500">
-                  Don't have an Account ?{' '}
-                  <Link
-                    to="/basic-register"
-                    className="font-semibold underline hover:text-primary transition duration-200"
-                  >
-                    SignUp
-                  </Link>
-                </p>
               </div>
             </form>
           </div>
