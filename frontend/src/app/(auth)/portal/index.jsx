@@ -88,11 +88,11 @@ const PortalLogin = () => {
       <PageMeta title="Portal Login" />
       <div className="relative min-h-screen w-full flex justify-center items-center py-16 md:py-10">
         <div className="card md:w-lg w-screen z-10">
-          <div className="text-center px-10 py-12">
-            <Link to="/index" className="flex justify-center">
-              <img src={logoDark} alt="logo dark" className="h-16 w-auto object-contain flex dark:hidden" />
-              <img src={logoLight} alt="logo light" className="h-16 w-auto object-contain hidden dark:flex" />
-            </Link>
+            <div className="text-center px-10 py-12">
+              <Link to="/index" className="flex justify-center">
+                <img src={logoDark} alt="logo dark" className="h-16 w-auto object-contain flex dark:hidden" />
+                <img src={logoLight} alt="logo light" className="h-16 w-auto object-contain hidden dark:flex" />
+              </Link>
 
             <div className="mt-8 text-center">
               <h4 className="mb-2.5 text-xl font-semibold text-primary">Welcome Back !</h4>

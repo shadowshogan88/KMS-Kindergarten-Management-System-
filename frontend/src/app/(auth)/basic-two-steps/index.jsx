@@ -8,10 +8,10 @@ const Index = () => {
       <div className="relative min-h-screen w-full flex justify-center items-center py-16 md:py-10">
         <div className="card md:w-lg w-screen z-10">
           <div className="text-center px-10 py-12">
-            <Link to="/index" className="flex justify-center">
-              <img src={logoDark} alt="logo dark" className="h-12 w-44 object-contain flex dark:hidden" />
+              <Link to="/index" className="flex justify-center">
+                <img src={logoDark} alt="logo dark" className="h-12 w-44 object-contain flex dark:hidden" />
               <img src={logoLight} alt="logo light" className="h-12 w-44 object-contain hidden dark:flex" />
-            </Link>
+              </Link>
 
             <div className="mt-8">
               <h4 className="mb-4 text-primary text-xl font-semibold">Verify Email</h4>
