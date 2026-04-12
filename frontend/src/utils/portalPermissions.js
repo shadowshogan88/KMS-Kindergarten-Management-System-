@@ -32,11 +32,18 @@ export const resolvePermissionPath = pathname => {
 const hasAnyPermissions = () => Object.keys(getPortalPermissions()).length > 0;
 
 export const canPortal = (pathnameOrHref, action = 'view') => {
+  const user = authStorage.getUser();
+  const userRole = String(user?.role || '').toUpperCase();
+  const isAdmin = userRole === 'ADMIN' || Boolean(user?.is_superuser);
+
   let normalized = normalizePath(pathnameOrHref);
   if (normalized === '/portal/logout' || normalized.startsWith('/portal/logout/')) return true;
   if (normalized === '/portal/dashboard' || normalized.startsWith('/portal/dashboard/')) return true;
   if (normalized === '/portal/profile' || normalized.startsWith('/portal/profile/')) return true;
   if (normalized === '/portal/change-password' || normalized.startsWith('/portal/change-password/')) return true;
+
+  // Admin-only pages (backend enforces IsAdmin regardless of portal RBAC).
+  if (normalized === '/portal/roles' || normalized.startsWith('/portal/roles/')) return isAdmin;
   if (normalized === '/portal/notifications' || normalized.startsWith('/portal/notifications/')) {
     return String(action || 'view').toLowerCase() === 'view';
   }
