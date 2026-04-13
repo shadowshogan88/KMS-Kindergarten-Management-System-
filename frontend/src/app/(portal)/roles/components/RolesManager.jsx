@@ -9,6 +9,9 @@ import { openOverlay } from '@/utils/overlay';
 
 import AssignRoleUsersModal from './AssignRoleUsersModal';
 
+const SYSTEM_ROLE_NAMES = new Set(['parents', 'students', 'teachers']);
+const isSystemRole = role => SYSTEM_ROLE_NAMES.has(String(role?.name || '').trim().toLowerCase());
+
 const RolesManager = () => {
   const navigate = useNavigate();
 
@@ -57,6 +60,10 @@ const RolesManager = () => {
   const save = async () => {
     setError('');
     const isEdit = Boolean(editingRole?.id);
+    if (isEdit && isSystemRole(editingRole)) {
+      setError('This role is managed by the system and cannot be edited.');
+      return;
+    }
     if (isEdit && !canEdit) {
       setError('You do not have permission to edit roles.');
       return;
@@ -67,6 +74,10 @@ const RolesManager = () => {
     }
     if (!name.trim()) {
       setError('Role name is required.');
+      return;
+    }
+    if (!isEdit && SYSTEM_ROLE_NAMES.has(name.trim().toLowerCase())) {
+      setError('This role name is reserved and cannot be created.');
       return;
     }
     setIsSubmitting(true);
@@ -93,6 +104,10 @@ const RolesManager = () => {
 
   const startEdit = role => {
     if (!role?.id) return;
+    if (isSystemRole(role)) {
+      setError('This role is managed by the system and cannot be edited.');
+      return;
+    }
     setError('');
     setEditingRole(role);
     setName(role?.name || '');
@@ -109,6 +124,10 @@ const RolesManager = () => {
   const remove = async role => {
     if (!role?.id) return;
     setError('');
+    if (isSystemRole(role)) {
+      setError('This role is managed by the system and cannot be deleted.');
+      return;
+    }
     if (!canDelete) {
       setError('You do not have permission to delete roles.');
       return;
@@ -238,7 +257,7 @@ const RolesManager = () => {
                             className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
                             title="Edit"
                             onClick={() => startEdit(r)}
-                            disabled={!canEdit}
+                            disabled={!canEdit || isSystemRole(r)}
                           >
                             <LuPencil className="size-4" />
                           </button>
@@ -247,7 +266,7 @@ const RolesManager = () => {
                             className="btn size-8 bg-default-200 hover:bg-danger/10 hover:text-danger text-default-600"
                             title="Delete"
                             onClick={() => remove(r)}
-                            disabled={!canDelete}
+                            disabled={!canDelete || isSystemRole(r)}
                           >
                             <LuTrash2 className="size-4" />
                           </button>

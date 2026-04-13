@@ -29,7 +29,10 @@ export const resolvePermissionPath = pathname => {
   return match || '';
 };
 
-const hasAnyPermissions = () => Object.keys(getPortalPermissions()).length > 0;
+const hasPortalRole = () => {
+  const user = authStorage.getUser();
+  return user?.portal_role_id != null;
+};
 
 export const canPortal = (pathnameOrHref, action = 'view') => {
   const user = authStorage.getUser();
@@ -70,7 +73,7 @@ export const canPortal = (pathnameOrHref, action = 'view') => {
   if (normalized === '/portal/sales-expenses' || normalized.startsWith('/portal/sales-expenses/')) normalized = '/portal/department';
 
   // If no portal role assigned, backend allows everything; keep frontend consistent.
-  if (!hasAnyPermissions()) return true;
+  if (!hasPortalRole()) return true;
 
   const perms = getPortalPermissions();
   const key = resolvePermissionPath(normalized) || normalized;

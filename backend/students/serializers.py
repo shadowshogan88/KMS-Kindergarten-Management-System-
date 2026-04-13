@@ -3,6 +3,8 @@ import datetime
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
+from users.models import PortalRole
+
 from .models import ParentProfile, Student
 from .emails import send_student_credentials_email
 
@@ -91,6 +93,25 @@ class StudentSerializer(serializers.ModelSerializer):
                 return username
         raise serializers.ValidationError({"username": "Unable to generate a unique student username. Try again."})
 
+    def _assign_student_portal_role(self, user) -> None:
+        if not user:
+            return
+        if getattr(user, "portal_role_id", None):
+            return
+        if getattr(user, "role", None) != "STUDENT":
+            return
+
+        role = (
+            PortalRole.objects.filter(is_active=True, name__iexact="Students").first()
+            or PortalRole.objects.filter(is_active=True, name__iexact="Student").first()
+            or PortalRole.objects.filter(is_active=True, name__iexact="STUDENT").first()
+        )
+        if not role:
+            return
+
+        user.portal_role = role
+        user.save(update_fields=["portal_role"])
+
     def create(self, validated_data):
         create_user = bool(validated_data.pop("create_user", False))
         if "create_user" not in (getattr(self, "initial_data", {}) or {}):
@@ -102,6 +123,7 @@ class StudentSerializer(serializers.ModelSerializer):
         student = super().create(validated_data)
 
         if not create_user:
+            self._assign_student_portal_role(getattr(student, "user", None))
             return student
 
         User = self.context["request"].user.__class__ if self.context.get("request") else None
@@ -131,6 +153,7 @@ class StudentSerializer(serializers.ModelSerializer):
             first_name=student.first_name,
             last_name=student.last_name,
         )
+        self._assign_student_portal_role(user)
         user.must_change_password = True
         user.save(update_fields=["must_change_password"])
 

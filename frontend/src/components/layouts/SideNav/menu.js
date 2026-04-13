@@ -81,7 +81,8 @@ export const menuItemsData = [{
   }, {
     key: 'ExamMarks',
     label: 'Marks Entry',
-    href: '/portal/exam/marks'
+    href: '/portal/exam/marks',
+    permissionAction: 'edit'
   }, {
     key: 'ExamResults',
     label: 'Results',
@@ -135,10 +136,11 @@ export const menuItemsData = [{
     }, {
       key: 'HomeworkCreate',
       label: 'Create Homework',
-      href: '/portal/homework/create'
+      href: '/portal/homework/create',
+      permissionAction: 'create'
     }, {
       key: 'HomeworkSubmissions',
-      label: 'Review Submissions',
+      label: 'Submissions',
       href: '/portal/homework/submissions'
     }]
   }, {
@@ -152,10 +154,11 @@ export const menuItemsData = [{
     }, {
       key: 'AssignmentCreate',
       label: 'Create Assignment',
-      href: '/portal/assignment/create'
+      href: '/portal/assignment/create',
+      permissionAction: 'create'
     }, {
       key: 'AssignmentSubmissions',
-      label: 'Review Submissions',
+      label: 'Submissions',
       href: '/portal/assignment/submissions'
     }]
   }, {
@@ -194,7 +197,8 @@ export const menuItemsData = [{
     }, {
       key: 'Add Leave (Employee)',
       label: 'Add Leave (Employee)',
-      href: '/portal/create-leave-employee'
+      href: '/portal/create-leave-employee',
+      permissionAction: 'create'
     }, {
       key: 'By Admin',
       label: 'By Admin',
@@ -202,7 +206,8 @@ export const menuItemsData = [{
     }, {
       key: 'Add Leave (Admin)',
       label: 'Add Leave (Admin)',
-      href: '/portal/create-leave'
+      href: '/portal/create-leave',
+      permissionAction: 'create'
     }]
   }, {
     key: 'Staff Attendance',
@@ -249,7 +254,8 @@ export const menuItemsData = [{
     }, {
       key: 'Create Payslip',
       label: 'Create Payslip',
-      href: '/portal/create-payslip'
+      href: '/portal/create-payslip',
+      permissionAction: 'create'
     }]
   }]
 }, {

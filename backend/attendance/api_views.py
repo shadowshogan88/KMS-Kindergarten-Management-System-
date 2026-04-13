@@ -18,6 +18,7 @@ from .models import AcademicAttendanceRecord, AttendanceRecord
 from .serializers import AcademicAttendanceRecordSerializer, AttendanceRecordSerializer
 from classes.models import Enrollment
 from routines.holiday_utils import get_holiday_for_date
+from notifications.services import notify_absent_student
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
@@ -56,7 +57,15 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Not your classroom.")
         if not Enrollment.objects.filter(classroom=classroom, student=student).exists():
             raise ValidationError({"student": "Student not enrolled in this classroom."})
-        serializer.save()
+        record = serializer.save()
+        if record.status == AttendanceRecord.STATUS_ABSENT:
+            notify_absent_student(
+                student=record.student,
+                title="Attendance alert",
+                message=f"{record.student} was marked absent on {record.date}.",
+                created_by=user,
+                data={"attendance_record_id": record.id, "date": str(record.date), "classroom_id": record.classroom_id},
+            )
 
 
 class AcademicAttendanceViewSet(viewsets.ModelViewSet):
@@ -66,6 +75,13 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
     rbac_action_map = {"bulk": "create", "sheet": "view"}
 
     def get_permissions(self):
+        user = getattr(self.request, "user", None)
+        # Parent/Student portal views are always scoped by get_queryset() and action handlers.
+        # Allow them to view their own read-only reports even if portal role permissions are not configured.
+        if self.action in {"month_grid", "summary"} and getattr(user, "role", None) in {"PARENT", "STUDENT"}:
+            self.permission_classes = [permissions.IsAuthenticated]
+            return super().get_permissions()
+
         if self.action in {"create", "update", "partial_update", "destroy", "bulk"}:
             self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin | IsTeacher]
         else:
@@ -221,6 +237,14 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
                 defaults={"status": status_val, "note": note},
             )
             results.append(obj)
+            if status_val == AcademicAttendanceRecord.STATUS_ABSENT:
+                notify_absent_student(
+                    student=obj.student,
+                    title="Attendance alert",
+                    message=f"{obj.student} was marked absent on {obj.date}.",
+                    created_by=request.user,
+                    data={"academic_attendance_record_id": obj.id, "date": str(obj.date), "class_id": obj.school_class_id, "section": obj.section},
+                )
 
         return Response(AcademicAttendanceRecordSerializer(results, many=True).data)
 
@@ -272,9 +296,18 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
+        user = getattr(request, "user", None)
         school_class_id = request.query_params.get("class") or request.query_params.get("school_class")
         section = (request.query_params.get("section") or "").strip().upper()
         month = (request.query_params.get("month") or "").strip()  # YYYY-MM
+
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                raise PermissionDenied("Student profile not found.")
+            school_class_id = student.school_class_id
+            section = (getattr(student, "section", "") or "").strip().upper()
+
         if not school_class_id or not month or len(month) != 7:
             return Response({"detail": "class and month (YYYY-MM) are required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -289,10 +322,16 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         students_qs = Student.objects.filter(school_class_id=school_class_id)
         if section:
             students_qs = students_qs.filter(section=section)
+        if getattr(user, "role", None) == "PARENT":
+            students_qs = students_qs.filter(parent=user)
 
         records = AcademicAttendanceRecord.objects.filter(school_class_id=school_class_id, date__gte=start, date__lte=end)
         if section:
             records = records.filter(section=section)
+        if getattr(user, "role", None) == "PARENT":
+            records = records.filter(student__parent=user)
+        if getattr(user, "role", None) == "STUDENT":
+            records = records.filter(student__user=user)
 
         agg = (
             records.values("student_id")
@@ -321,9 +360,18 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="month-grid")
     def month_grid(self, request):
+        user = getattr(request, "user", None)
         school_class_id = request.query_params.get("class") or request.query_params.get("school_class")
         section = (request.query_params.get("section") or "").strip().upper()
         month = (request.query_params.get("month") or "").strip()  # YYYY-MM
+
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                raise PermissionDenied("Student profile not found.")
+            school_class_id = student.school_class_id
+            section = (getattr(student, "section", "") or "").strip().upper()
+
         if not school_class_id or not month or len(month) != 7:
             return Response({"detail": "class and month (YYYY-MM) are required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -349,11 +397,23 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         students_qs = Student.objects.filter(school_class_id=school_class_id)
         if section:
             students_qs = students_qs.filter(section=section)
+        if getattr(user, "role", None) == "PARENT":
+            students_qs = students_qs.filter(parent=user)
+        if getattr(user, "role", None) == "STUDENT":
+            students_qs = students_qs.filter(user=user)
         students_qs = students_qs.order_by("first_name", "last_name")
 
-        records = AcademicAttendanceRecord.objects.filter(school_class_id=school_class_id, section=section, date__gte=start, date__lte=end).values(
-            "student_id", "date", "status"
+        records_qs = AcademicAttendanceRecord.objects.filter(
+            school_class_id=school_class_id,
+            section=section,
+            date__gte=start,
+            date__lte=end,
         )
+        if getattr(user, "role", None) == "PARENT":
+            records_qs = records_qs.filter(student__parent=user)
+        if getattr(user, "role", None) == "STUDENT":
+            records_qs = records_qs.filter(student__user=user)
+        records = records_qs.values("student_id", "date", "status")
         by_student_day: dict[int, dict[str, str]] = {}
         for r in records:
             sid = r["student_id"]

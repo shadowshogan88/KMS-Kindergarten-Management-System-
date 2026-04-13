@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LuPlus, LuRefreshCw, LuTrash2 } from 'react-icons/lu';
 
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
+import { canPortal } from '@/utils/portalPermissions';
 
 const DateHolidaysManager = () => {
+  const canView = useMemo(() => canPortal('/portal/holidays', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/holidays', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/holidays', 'edit'), []);
+  const canDelete = useMemo(() => canPortal('/portal/holidays', 'delete'), []);
+  const showForm = canCreate || canEdit;
+  const showActions = canDelete;
+
   const [flash, setFlash] = useState('');
   const [error, setError] = useState('');
 
@@ -27,6 +35,10 @@ const DateHolidaysManager = () => {
   const load = async () => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
@@ -48,6 +60,10 @@ const DateHolidaysManager = () => {
   const createHoliday = async () => {
     setFlash('');
     setError('');
+    if (!canCreate) {
+      setError('You do not have permission to perform this action.');
+      return;
+    }
     if (!form.date) {
       setError('Date is required.');
       return;
@@ -70,6 +86,10 @@ const DateHolidaysManager = () => {
     if (!row?.id) return;
     setFlash('');
     setError('');
+    if (!canDelete) {
+      setError('You do not have permission to perform this action.');
+      return;
+    }
     try {
       await apiJson(`/holidays/${row.id}/`, { method: 'DELETE' });
       setFlash('Holiday deleted.');
@@ -89,6 +109,7 @@ const DateHolidaysManager = () => {
       </div>
 
       <div className="p-5">
+        {!canView ? <div className="mb-4 text-sm text-danger">You do not have permission to view holidays.</div> : null}
         {flash ? (
           <div className="mb-4 rounded-md border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-default-800">
             {flash}
@@ -100,51 +121,55 @@ const DateHolidaysManager = () => {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="inline-block mb-2 text-base font-medium">Date</label>
-            <input
-              type="date"
-              className="form-input"
-              value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <label className="inline-block mb-2 text-base font-medium">Title</label>
-            <input
-              className="form-input"
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="e.g. Eid-ul-Fitr"
-            />
-          </div>
-          <div className="flex items-end gap-3">
-            <button type="button" className="btn bg-primary text-white w-full flex items-center justify-center gap-2" onClick={createHoliday}>
-              <LuPlus className="size-4" /> Add
-            </button>
-          </div>
-        </div>
+        {showForm ? (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="inline-block mb-2 text-base font-medium">Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={form.date}
+                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="inline-block mb-2 text-base font-medium">Title</label>
+                <input
+                  className="form-input"
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Eid-ul-Fitr"
+                />
+              </div>
+              <div className="flex items-end gap-3">
+                <button type="button" className="btn bg-primary text-white w-full flex items-center justify-center gap-2" onClick={createHoliday}>
+                  <LuPlus className="size-4" /> Add
+                </button>
+              </div>
+            </div>
 
-        <div className="mt-4">
-          <label className="inline-block mb-2 text-base font-medium">Description (optional)</label>
-          <textarea
-            className="form-input"
-            rows={2}
-            value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Optional note"
-          />
-          <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              className="form-checkbox rounded"
-              checked={Boolean(form.is_active)}
-              onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
-            />
-            <span className="text-sm text-default-700">Active</span>
-          </label>
-        </div>
+            <div className="mt-4">
+              <label className="inline-block mb-2 text-base font-medium">Description (optional)</label>
+              <textarea
+                className="form-input"
+                rows={2}
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Optional note"
+              />
+              <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="form-checkbox rounded"
+                  checked={Boolean(form.is_active)}
+                  onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
+                />
+                <span className="text-sm text-default-700">Active</span>
+              </label>
+            </div>
+          </>
+        ) : null}
 
         <div className="mt-5 overflow-x-auto">
           <table className="min-w-full divide-y divide-default-200">
@@ -153,13 +178,13 @@ const DateHolidaysManager = () => {
                 <th className="px-3.5 py-3 font-medium text-start">Date</th>
                 <th className="px-3.5 py-3 font-medium text-start">Title</th>
                 <th className="px-3.5 py-3 font-medium text-start">Active</th>
-                <th className="px-3.5 py-3 font-medium text-start">Action</th>
+                {showActions ? <th className="px-3.5 py-3 font-medium text-start">Action</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-default-200">
               {isLoading ? (
                 <tr className="text-default-800 font-normal whitespace-nowrap">
-                  <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                  <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 4 : 3}>
                     Loading...
                   </td>
                 </tr>
@@ -167,7 +192,7 @@ const DateHolidaysManager = () => {
 
               {!isLoading && items.length === 0 ? (
                 <tr className="text-default-800 font-normal whitespace-nowrap">
-                  <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                  <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 4 : 3}>
                     No holidays found.
                   </td>
                 </tr>
@@ -181,16 +206,18 @@ const DateHolidaysManager = () => {
                     {row.description ? <div className="text-xs text-default-500 mt-0.5">{row.description}</div> : null}
                   </td>
                   <td className="px-3.5 py-3 text-sm">{row.is_active ? 'Yes' : 'No'}</td>
-                  <td className="px-3.5 py-3 text-sm">
-                    <button
-                      type="button"
-                      className="btn size-8 bg-default-200 hover:bg-danger/10 hover:text-danger text-default-600"
-                      onClick={() => deleteHoliday(row)}
-                      title="Delete"
-                    >
-                      <LuTrash2 className="size-4" />
-                    </button>
-                  </td>
+                  {showActions ? (
+                    <td className="px-3.5 py-3 text-sm">
+                      <button
+                        type="button"
+                        className="btn size-8 bg-default-200 hover:bg-danger/10 hover:text-danger text-default-600"
+                        onClick={() => deleteHoliday(row)}
+                        title="Delete"
+                      >
+                        <LuTrash2 className="size-4" />
+                      </button>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -202,4 +229,3 @@ const DateHolidaysManager = () => {
 };
 
 export default DateHolidaysManager;
-

@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from academics.models import SchoolClass
 from classes.models import Classroom
@@ -147,6 +149,59 @@ class Notification(models.Model):
     def __str__(self) -> str:
         return f"{self.type}: {self.title}".strip()
 
+    def clean(self):
+        super().clean()
+        if self.publish_at and self.expires_at and self.expires_at <= self.publish_at:
+            raise ValidationError({"expires_at": "Expiry time must be after publish time."})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def is_published(self, at=None) -> bool:
+        now = at or timezone.now()
+        return self.publish_at is None or self.publish_at <= now
+
+    def is_expired(self, at=None) -> bool:
+        now = at or timezone.now()
+        return self.expires_at is not None and self.expires_at < now
+
+    def is_visible(self, at=None) -> bool:
+        return self.is_published(at=at) and not self.is_expired(at=at)
+
+    @classmethod
+    def create_for_users(
+        cls,
+        *,
+        user_ids,
+        title,
+        created_by=None,
+        type=TYPE_CUSTOM,
+        priority=PRIORITY_NORMAL,
+        message="",
+        action_url="",
+        data=None,
+        publish_at=None,
+        expires_at=None,
+    ):
+        notification = cls.objects.create(
+            type=type,
+            priority=priority,
+            title=title,
+            message=message or "",
+            action_url=action_url or "",
+            data=data or {},
+            created_by=created_by,
+            publish_at=publish_at,
+            expires_at=expires_at,
+        )
+        recipient_ids = sorted({int(uid) for uid in (user_ids or []) if uid})
+        NotificationRecipient.objects.bulk_create(
+            [NotificationRecipient(notification=notification, user_id=uid) for uid in recipient_ids],
+            ignore_conflicts=True,
+        )
+        return notification, len(recipient_ids)
+
 
 class NotificationRecipient(models.Model):
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="recipient_rows")
@@ -167,3 +222,17 @@ class NotificationRecipient(models.Model):
 
     def __str__(self) -> str:
         return f"NotificationRecipient({self.notification_id}, {self.user_id})"
+
+    def mark_read(self, when=None, save=True):
+        self.is_read = True
+        self.read_at = when or timezone.now()
+        if save:
+            self.save(update_fields=["is_read", "read_at"])
+        return self
+
+    def mark_unread(self, save=True):
+        self.is_read = False
+        self.read_at = None
+        if save:
+            self.save(update_fields=["is_read", "read_at"])
+        return self

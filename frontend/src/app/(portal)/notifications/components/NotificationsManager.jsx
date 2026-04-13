@@ -90,6 +90,7 @@ const NotificationsManager = () => {
   const markAllRead = async () => {
     try {
       await apiJson('/inbox-notifications/read-all/', { method: 'POST' });
+      window.dispatchEvent(new CustomEvent('kms_notifications_changed'));
       load();
     } catch {
       // ignore
@@ -100,6 +101,17 @@ const NotificationsManager = () => {
     try {
       const updated = await apiJson(`/inbox-notifications/${encodeURIComponent(receiptId)}/read/`, { method: 'POST' });
       setItems(prev => prev.map(x => x.id === receiptId ? updated : x));
+      window.dispatchEvent(new CustomEvent('kms_notifications_changed'));
+    } catch {
+      // ignore
+    }
+  };
+
+  const markUnread = async receiptId => {
+    try {
+      const updated = await apiJson(`/inbox-notifications/${encodeURIComponent(receiptId)}/unread/`, { method: 'POST' });
+      setItems(prev => prev.map(x => x.id === receiptId ? updated : x));
+      window.dispatchEvent(new CustomEvent('kms_notifications_changed'));
     } catch {
       // ignore
     }
@@ -159,6 +171,9 @@ const NotificationsManager = () => {
                   <div className="flex items-center gap-2 shrink-0">
                     {!n.is_read && <button type="button" className="btn btn-xs bg-default-100 text-default-700" onClick={() => markRead(n.id)}>
                         Mark read
+                      </button>}
+                    {n.is_read && <button type="button" className="btn btn-xs bg-default-100 text-default-700" onClick={() => markUnread(n.id)}>
+                        Mark unread
                       </button>}
                   </div>
                 </div>;

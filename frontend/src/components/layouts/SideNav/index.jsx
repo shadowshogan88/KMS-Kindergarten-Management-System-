@@ -9,12 +9,12 @@ import logoSm from '@/assets/images/logo-sm.png';
 const Sidebar = () => {
   const location = useLocation();
   const pathname = location?.pathname || '';
-  const homeHref = pathname.startsWith('/portal/') ? '/portal/dashboard' : '/index';
-  const isPortalDashboard = pathname === '/portal/dashboard' || pathname.startsWith('/portal/dashboard/');
-  const logoLightSrc = isPortalDashboard ? logoDashboard : logoLight;
-  const logoDarkSrc = isPortalDashboard ? logoDashboard : logoDark;
-  const logoBoxClass = isPortalDashboard ? 'logo-lg h-12 w-full max-w-none object-cover object-top' : 'logo-lg h-12 w-auto max-w-[220px] object-contain';
-  const logoWrapClass = isPortalDashboard ? 'flex w-full items-center overflow-hidden rounded' : '';
+  const isPortal = pathname === '/portal' || pathname.startsWith('/portal/');
+  const homeHref = isPortal ? '/portal/dashboard' : '/index';
+  const logoLightSrc = isPortal ? logoDashboard : logoLight;
+  const logoDarkSrc = isPortal ? logoDashboard : logoDark;
+  const logoBoxClass = isPortal ? 'logo-lg h-12 w-full max-w-none object-cover' : 'logo-lg h-12 w-auto max-w-[220px] object-contain';
+  const logoWrapClass = isPortal ? 'flex w-full items-center overflow-hidden rounded' : '';
   return <aside id="app-menu" className="app-menu">
       <Link to={homeHref} className="logo-box sticky top-0 flex min-h-topbar-height items-center justify-start px-6 backdrop-blur-xs">
         <div className={`logo-light ${logoWrapClass}`}>

@@ -129,9 +129,13 @@ class SendNotificationSerializer(serializers.Serializer):
         target_user_ids = attrs.get("target_user_ids") or []
         classroom = attrs.get("classroom")
         school_class_ids = attrs.get("school_class_ids") or []
+        publish_at = attrs.get("publish_at")
+        expires_at = attrs.get("expires_at")
 
         if not target_roles and not target_user_ids and not classroom and not school_class_ids:
             raise serializers.ValidationError("Provide at least one target (roles/users/classroom/school_class_ids).")
+        if publish_at and expires_at and expires_at <= publish_at:
+            raise serializers.ValidationError({"expires_at": "Expiry time must be after publish time."})
         return attrs
 
     def get_recipient_user_ids(self, sender):

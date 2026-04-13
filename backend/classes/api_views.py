@@ -17,6 +17,12 @@ from students.models import Student
 from .models import Classroom, Enrollment, LiveClass, SpecialLiveClass
 from .serializers import ClassroomSerializer, EnrollmentSerializer, LiveClassSerializer, SpecialLiveClassSerializer
 from integrations.google import create_calendar_event_with_meet, delete_calendar_event
+from notifications.services import (
+    notify_live_class,
+    notify_live_class_time_changed,
+    notify_special_live_class,
+    notify_special_live_class_time_changed,
+)
 
 
 class ClassroomViewSet(viewsets.ModelViewSet):
@@ -81,7 +87,19 @@ class LiveClassViewSet(viewsets.ModelViewSet):
         classroom = serializer.validated_data["classroom"]
         if getattr(user, "role", None) == "TEACHER" and classroom.teacher_id != user.id:
             raise PermissionDenied("Not your classroom.")
-        serializer.save(created_by=user)
+        obj = serializer.save(created_by=user)
+        notify_live_class(obj)
+
+    def perform_update(self, serializer):
+        previous_starts_at = serializer.instance.starts_at
+        previous_ends_at = serializer.instance.ends_at
+        obj = serializer.save()
+        if obj.starts_at != previous_starts_at or obj.ends_at != previous_ends_at:
+            notify_live_class_time_changed(
+                obj,
+                previous_starts_at=previous_starts_at,
+                previous_ends_at=previous_ends_at,
+            )
 
 
 class SpecialLiveClassViewSet(viewsets.ModelViewSet):
@@ -160,7 +178,25 @@ class SpecialLiveClassViewSet(viewsets.ModelViewSet):
         return qs.order_by("date", "start_time", "id")
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        obj = serializer.save(created_by=self.request.user)
+        notify_special_live_class(obj)
+
+    def perform_update(self, serializer):
+        previous_date = serializer.instance.date
+        previous_start_time = serializer.instance.start_time
+        previous_end_time = serializer.instance.end_time
+        obj = serializer.save()
+        if (
+            obj.date != previous_date
+            or obj.start_time != previous_start_time
+            or obj.end_time != previous_end_time
+        ):
+            notify_special_live_class_time_changed(
+                obj,
+                previous_date=previous_date,
+                previous_start_time=previous_start_time,
+                previous_end_time=previous_end_time,
+            )
 
     @action(detail=True, methods=["post"], url_path="generate-meet")
     def generate_meet(self, request, pk=None):

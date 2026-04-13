@@ -57,6 +57,17 @@ class Homework(TimeStampedModel):
     section = models.CharField(max_length=1, blank=True, default="")
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT, related_name="homeworks")
 
+    # Optional link to a scheduled live class (date-based).
+    special_live_class = models.ForeignKey(
+        "classes.SpecialLiveClass",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="homeworks",
+    )
+    # The date this homework is assigned for (used for date-wise listing).
+    class_date = models.DateField(null=True, blank=True, db_index=True)
+
     description = models.TextField(blank=True, default="", help_text="Rich HTML content from CKEditor 5")
     pdf_file = models.FileField(upload_to=homework_pdf_upload_to, blank=True, null=True)
 
@@ -69,6 +80,7 @@ class Homework(TimeStampedModel):
         ordering = ["-created_at", "-id"]
         indexes = [
             models.Index(fields=["class_name", "section", "due_date"]),
+            models.Index(fields=["class_name", "section", "class_date"]),
             models.Index(fields=["homework_type", "status", "due_date"]),
         ]
 
@@ -96,6 +108,21 @@ class Homework(TimeStampedModel):
 
         if self.due_date and timezone.is_naive(self.due_date):
             self.due_date = timezone.make_aware(self.due_date, timezone.get_current_timezone())
+
+        if self.special_live_class_id:
+            slc = self.special_live_class
+            if slc and self.class_name_id and slc.school_class_id != self.class_name_id:
+                raise ValidationError({"special_live_class": "Live class must match the selected class."})
+            slc_section = (getattr(slc, "section", "") or "").strip().upper() if slc else ""
+            if slc_section and self.section and slc_section != self.section:
+                raise ValidationError({"special_live_class": "Live class must match the selected section."})
+            if slc_section and not self.section:
+                self.section = slc_section
+            if slc:
+                self.class_date = slc.date
+
+        if not self.class_date and self.due_date:
+            self.class_date = timezone.localtime(self.due_date, timezone.get_current_timezone()).date()
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -135,6 +162,7 @@ class HomeworkSubmission(TimeStampedModel):
     content_html = models.TextField(blank=True, default="")
 
     teacher_marks = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    teacher_total_marks = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     teacher_feedback = models.TextField(blank=True, default="")
 
     class Meta:
@@ -172,6 +200,10 @@ class HomeworkSubmission(TimeStampedModel):
 
         if self.teacher_marks is not None and self.teacher_marks < Decimal("0"):
             raise ValidationError({"teacher_marks": "Marks cannot be negative."})
+        if self.teacher_total_marks is not None and self.teacher_total_marks <= Decimal("0"):
+            raise ValidationError({"teacher_total_marks": "Total marks must be greater than zero."})
+        if self.teacher_marks is not None and self.teacher_total_marks is not None and self.teacher_marks > self.teacher_total_marks:
+            raise ValidationError({"teacher_marks": "Obtained marks cannot exceed total marks."})
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -226,6 +258,7 @@ class SubmissionAnnotation(TimeStampedModel):
 class HomeworkGradeLog(models.Model):
     submission = models.ForeignKey(HomeworkSubmission, on_delete=models.CASCADE, related_name="grade_logs")
     marks = models.DecimalField(max_digits=6, decimal_places=2)
+    total_marks = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     graded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="homework_grade_logs")
     graded_at = models.DateTimeField(auto_now_add=True)
 

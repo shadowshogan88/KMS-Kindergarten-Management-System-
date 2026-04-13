@@ -29,6 +29,8 @@ class SubjectSerializer(serializers.ModelSerializer):
     classroom_key = serializers.CharField(read_only=True)
     classroom_label = serializers.CharField(read_only=True)
     subject_teacher_label = serializers.CharField(read_only=True)
+    subject_teacher_email = serializers.SerializerMethodField(read_only=True)
+    subject_teacher_phone = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Subject
@@ -38,6 +40,8 @@ class SubjectSerializer(serializers.ModelSerializer):
             "code",
             "subject_teacher",
             "subject_teacher_label",
+            "subject_teacher_email",
+            "subject_teacher_phone",
             "school_class",
             "section",
             "full_marks",
@@ -49,6 +53,18 @@ class SubjectSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def get_subject_teacher_email(self, obj):
+        teacher = getattr(obj, "subject_teacher", None)
+        if not teacher:
+            return ""
+        return (getattr(teacher, "email", "") or "").strip()
+
+    def get_subject_teacher_phone(self, obj):
+        teacher = getattr(obj, "subject_teacher", None)
+        if not teacher:
+            return ""
+        return (getattr(teacher, "phone", "") or "").strip()
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -240,6 +256,8 @@ class ClassTeacherSerializer(serializers.ModelSerializer):
     classroom_key = serializers.CharField(read_only=True)
     classroom_label = serializers.CharField(read_only=True)
     teacher_label = serializers.CharField(read_only=True)
+    teacher_email = serializers.SerializerMethodField(read_only=True)
+    teacher_phone = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ClassTeacher
@@ -253,9 +271,23 @@ class ClassTeacherSerializer(serializers.ModelSerializer):
             "classroom_label",
             "teacher",
             "teacher_label",
+            "teacher_email",
+            "teacher_phone",
             "created_at",
             "updated_at",
         )
+
+    def get_teacher_email(self, obj):
+        teacher = getattr(obj, "teacher", None)
+        if not teacher:
+            return ""
+        return (getattr(teacher, "email", "") or "").strip()
+
+    def get_teacher_phone(self, obj):
+        teacher = getattr(obj, "teacher", None)
+        if not teacher:
+            return ""
+        return (getattr(teacher, "phone", "") or "").strip()
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

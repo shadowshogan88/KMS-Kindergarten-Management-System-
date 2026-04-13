@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Link } from 'react-router';
+import { Navigate, Link, useSearchParams } from 'react-router';
 
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import PageMeta from '@/components/PageMeta';
@@ -11,16 +11,35 @@ const HomeworkList = () => {
   const user = authStorage.getUser();
   const role = user?.role || '';
   const canCreate = role === 'ADMIN' || role === 'TEACHER';
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
+  const canPublish = role === 'ADMIN' || role === 'TEACHER';
+  const canDelete = role === 'ADMIN' || role === 'TEACHER';
 
   const load = async () => {
     if (!canUseApi) return;
     setIsLoading(true);
     setError('');
     try {
-      const data = await apiJson('/homeworks/?type=HOMEWORK');
+      const qs = new URLSearchParams();
+      qs.set('type', 'HOMEWORK');
+
+      const q = (searchParams.get('q') || '').trim();
+      const classId = (searchParams.get('class') || '').trim();
+      const section = (searchParams.get('section') || '').trim();
+      const subjectId = (searchParams.get('subject') || '').trim();
+      const date = (searchParams.get('date') || '').trim();
+
+      if (q) qs.set('q', q);
+      if (classId) qs.set('class', classId);
+      if (section) qs.set('section', section);
+      if (subjectId) qs.set('subject', subjectId);
+      if (date) qs.set('date', date);
+
+      const data = await apiJson(`/homeworks/?${qs.toString()}`);
       const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
       setItems(rows);
     } catch (e) {
@@ -32,7 +51,36 @@ const HomeworkList = () => {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const publishHomework = async homeworkId => {
+    setBusyId(homeworkId);
+    setError('');
+    try {
+      await apiJson(`/homeworks/${homeworkId}/publish/`, { method: 'POST' });
+      setItems(prev => prev.map(item => (item.id === homeworkId ? { ...item, status: 'PUBLISHED' } : item)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to publish homework.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deleteHomework = async homeworkId => {
+    const ok = window.confirm('Delete this homework?');
+    if (!ok) return;
+    setBusyId(homeworkId);
+    setError('');
+    try {
+      await apiJson(`/homeworks/${homeworkId}/`, { method: 'DELETE' });
+      setItems(prev => prev.filter(item => item.id !== homeworkId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete homework.');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (!canUseApi) return <Navigate to="/portal" replace state={{ error: 'Please sign in to continue.' }} />;
 
@@ -82,13 +130,46 @@ const HomeworkList = () => {
                         <td className="px-3.5 py-3 text-sm">{hw.status}</td>
                         <td className="px-3.5 py-3 text-sm">
                           {role === 'STUDENT' ? (
-                            <Link className="text-primary underline" to={`/portal/homework/${hw.id}/submit`}>
-                              Submit
-                            </Link>
+                            <div className="flex items-center gap-3">
+                              <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                View
+                              </Link>
+                              <Link className="text-primary underline" to={`/portal/homework/${hw.id}/submit`}>
+                                Submit
+                              </Link>
+                            </div>
                           ) : (
-                            <Link className="text-primary underline" to={`/portal/homework/submissions?homework=${encodeURIComponent(hw.id)}`}>
-                              Review
-                            </Link>
+                            <div className="flex items-center gap-3">
+                              <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                View
+                              </Link>
+                              <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
+                                Edit
+                              </Link>
+                              <Link className="text-primary underline" to={`/portal/homework/submissions?homework=${encodeURIComponent(hw.id)}`}>
+                                Review
+                              </Link>
+                              {canPublish && hw.status !== 'PUBLISHED' ? (
+                                <button
+                                  type="button"
+                                  className="text-success underline disabled:text-default-400"
+                                  disabled={busyId === hw.id}
+                                  onClick={() => publishHomework(hw.id)}
+                                >
+                                  {busyId === hw.id ? 'Publishing...' : 'Activate'}
+                                </button>
+                              ) : null}
+                              {canDelete ? (
+                                <button
+                                  type="button"
+                                  className="text-danger underline disabled:text-default-400"
+                                  disabled={busyId === hw.id}
+                                  onClick={() => deleteHomework(hw.id)}
+                                >
+                                  {busyId === hw.id ? 'Working...' : 'Delete'}
+                                </button>
+                              ) : null}
+                            </div>
                           )}
                         </td>
                       </tr>

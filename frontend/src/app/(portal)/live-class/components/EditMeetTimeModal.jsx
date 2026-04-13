@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LuLink2, LuRotateCcw, LuX } from 'react-icons/lu';
+import { LuRotateCcw, LuX } from 'react-icons/lu';
+import { SiGooglemeet } from 'react-icons/si';
 
 import { apiJson } from '@/utils/api';
 import { closeOverlay } from '@/utils/overlay';
@@ -164,8 +165,15 @@ const EditMeetTimeModal = ({ routine, onSaved }) => {
             <div className="flex items-center gap-3">
               {isOpen && routine?.meet_link ? (
                 <>
-                  <a className="text-primary underline text-sm" href={routine.meet_link} target="_blank" rel="noreferrer">
-                    <LuLink2 className="inline size-4" /> Open
+                  <a
+                    className="btn btn-xs bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                    href={routine.meet_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open Google Meet"
+                    aria-label="Open Google Meet"
+                  >
+                    <SiGooglemeet className="size-4" />
                   </a>
                   <button type="button" className="text-primary underline text-sm" onClick={regenerate} disabled={isSubmitting}>
                     <LuRotateCcw className="inline size-4" /> Regenerate

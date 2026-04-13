@@ -13,6 +13,17 @@ from .serializers import MeSerializer, PortalRolePermissionSerializer, PortalRol
 from .permissions import IsAdmin
 
 
+SYSTEM_PORTAL_ROLE_NAMES = {"parents", "students", "teachers"}
+
+
+def _is_system_portal_role_name(name: str | None) -> bool:
+    return bool(name and str(name).strip().lower() in SYSTEM_PORTAL_ROLE_NAMES)
+
+
+def _is_system_portal_role(role: PortalRole | None) -> bool:
+    return _is_system_portal_role_name(getattr(role, "name", None))
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
@@ -69,6 +80,27 @@ class PortalRoleViewSet(viewsets.ModelViewSet):
     queryset = PortalRole.objects.all()
     serializer_class = PortalRoleSerializer
     rbac_path = "/portal/roles"
+
+    def create(self, request, *args, **kwargs):
+        name = (request.data.get("name") or "").strip()
+        if _is_system_portal_role_name(name):
+            return Response({"detail": "This role name is reserved and cannot be created."}, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if _is_system_portal_role(self.get_object()):
+            return Response({"detail": "This role is managed by the system and cannot be edited."}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if _is_system_portal_role(self.get_object()):
+            return Response({"detail": "This role is managed by the system and cannot be edited."}, status=status.HTTP_403_FORBIDDEN)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if _is_system_portal_role(self.get_object()):
+            return Response({"detail": "This role is managed by the system and cannot be deleted."}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
 
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:

@@ -9,6 +9,7 @@ from django.db.models import Q
 
 from users.permissions import IsAdmin
 from users.rbac_permissions import HasPortalPermission
+from students.models import Student
 
 from .pagination import AcademicsPagination
 from .models import ClassTeacher, Department, Designation, Room, SchoolClass, Section, Subject, SubjectTeacher
@@ -52,12 +53,23 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="options")
     def options(self, request, *args, **kwargs):
+        user = getattr(request, "user", None)
         classes = SchoolClass.objects.all().order_by("name")
+
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                return Response([])
+            classes = classes.filter(id=student.school_class_id)
         options = []
         for school_class in classes:
             sections = school_class.sections or []
             if sections:
                 for section in sections:
+                    if getattr(user, "role", None) == "STUDENT":
+                        student_section = (getattr(student, "section", "") or "").strip().upper()
+                        if student_section and student_section != str(section).strip().upper():
+                            continue
                     options.append(
                         {
                             "value": f"{school_class.id}:{section}",
@@ -78,6 +90,13 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
         return Response(options)
 
     def get_permissions(self):
+        user = getattr(self.request, "user", None)
+        # Students need class options for their own scoped class/section on portal pages.
+        # Keep RBAC for staff, but allow students to access options/simple endpoints safely.
+        if self.action in {"options", "simple"} and getattr(user, "role", None) == "STUDENT":
+            self.permission_classes = [permissions.IsAuthenticated]
+            return super().get_permissions()
+
         if self.action in {"create", "update", "partial_update", "destroy"}:
             self.permission_classes = [permissions.IsAuthenticated, HasPortalPermission, IsAdmin]
         else:
@@ -213,6 +232,19 @@ class ClassTeacherViewSet(viewsets.ModelViewSet):
     serializer_class = ClassTeacherSerializer
     pagination_class = AcademicsPagination
     rbac_path = "/portal/class-teachers"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = getattr(self.request, "user", None)
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                return qs.none()
+            qs = qs.filter(school_class_id=student.school_class_id)
+            section = (getattr(student, "section", "") or "").strip().upper()
+            if section:
+                qs = qs.filter(section=section)
+        return qs
 
     def _handle_save_exception(self, e: Exception):
         if isinstance(e, DjangoValidationError):

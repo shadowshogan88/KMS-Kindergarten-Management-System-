@@ -5,6 +5,7 @@ import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
+import { canPortal } from '@/utils/portalPermissions';
 
 import AddAcademicRoutine from './AddAcademicRoutine';
 import DeleteModal from './DeleteModal';
@@ -29,6 +30,24 @@ const ClassRoutineViewer = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialClass = searchParams.get('class') || '';
   const initialSection = searchParams.get('section') || '';
+
+  const [user, setUser] = useState(() => authStorage.getUser());
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const studentClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
+  const studentClassLabel = String(user?.student_school_class_label || '').trim();
+  const studentSection = (user?.student_section || '').toString();
+
+  const canView = useMemo(() => canPortal('/portal/class-routine', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/class-routine', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/class-routine', 'edit'), []);
+  const canDelete = useMemo(() => canPortal('/portal/class-routine', 'delete'), []);
+  const showActions = canEdit || canDelete;
 
   const [classes, setClasses] = useState([]);
   const [schoolClass, setSchoolClass] = useState(initialClass);
@@ -63,28 +82,45 @@ const ClassRoutineViewer = () => {
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) return;
 
     let isMounted = true;
     setIsLoadingSchoolClasses(true);
     setClassError('');
-    apiJson('/academic-classes/simple/')
-      .then(data => {
-        if (!isMounted) return;
-        setClasses(Array.isArray(data) ? data : []);
-      })
-      .catch(e => {
-        if (!isMounted) return;
-        setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoadingSchoolClasses(false);
-      });
+    if (isStudent) {
+      const fallbackName = studentClassLabel || 'My Class';
+      const sections = studentSection ? [studentSection.toUpperCase()] : [];
+      setClasses(studentClassId ? [{ id: studentClassId, name: fallbackName, sections }] : []);
+      setIsLoadingSchoolClasses(false);
+    } else {
+      apiJson('/academic-classes/simple/')
+        .then(data => {
+          if (!isMounted) return;
+          setClasses(Array.isArray(data) ? data : []);
+        })
+        .catch(e => {
+          if (!isMounted) return;
+          setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
+        })
+        .finally(() => {
+          if (!isMounted) return;
+          setIsLoadingSchoolClasses(false);
+        });
+    }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [canView, isStudent, studentClassId, studentClassLabel, studentSection]);
+
+  useEffect(() => {
+    if (!isStudent) return;
+    if (!studentClassId) return;
+    if (schoolClass !== studentClassId) setSchoolClass(studentClassId);
+    const sec = (studentSection || '').trim().toUpperCase();
+    if (section !== sec) setSection(sec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, studentClassId, studentSection]);
 
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
@@ -124,6 +160,10 @@ const ClassRoutineViewer = () => {
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      return;
+    }
     if (!schoolClass) {
       setItems([]);
       return;
@@ -153,7 +193,7 @@ const ClassRoutineViewer = () => {
     return () => {
       isMounted = false;
     };
-  }, [schoolClass, section]);
+  }, [canView, schoolClass, section]);
 
   const dayRows = useMemo(() => {
     if (isWeeklyHolidayDay) return [];
@@ -190,7 +230,7 @@ const ClassRoutineViewer = () => {
               className="form-input"
               value={schoolClass}
               onChange={e => setSchoolClass(e.target.value)}
-              disabled={isLoadingSchoolClasses}
+              disabled={isLoadingSchoolClasses || isStudent}
             >
               <option value="">{isLoadingSchoolClasses ? 'Loading classes...' : 'Select class'}</option>
               {classes.map(c => (
@@ -210,7 +250,7 @@ const ClassRoutineViewer = () => {
               className="form-input"
               value={section}
               onChange={e => setSection(e.target.value)}
-              disabled={!schoolClass || sectionOptions.length === 0}
+              disabled={!schoolClass || sectionOptions.length === 0 || isStudent}
             >
               <option value="">{sectionOptions.length ? 'Select section' : 'No sections'}</option>
               {sectionOptions.map(s => (
@@ -224,20 +264,22 @@ const ClassRoutineViewer = () => {
           {classError ? <div className="sm:col-span-2 mt-1 text-xs text-danger">{classError}</div> : null}
         </div>
 
-        <button
-          className="btn btn-sm bg-primary text-white flex items-center gap-1"
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            setEditing(null);
-            requestAnimationFrame(() => openOverlay('#academic-routine-edit-modal'));
-          }}
-          type="button"
-          disabled={!schoolClass || isWeeklyHolidayDay}
-          title={isWeeklyHolidayDay ? `Break for Holiday: ${weeklyHolidayTitle}` : ''}
-        >
-          <LuPlus className="size-4" /> Add Routine
-        </button>
+        {canCreate ? (
+          <button
+            className="btn btn-sm bg-primary text-white flex items-center gap-1"
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditing(null);
+              requestAnimationFrame(() => openOverlay('#academic-routine-edit-modal'));
+            }}
+            type="button"
+            disabled={!schoolClass || isWeeklyHolidayDay}
+            title={isWeeklyHolidayDay ? `Break for Holiday: ${weeklyHolidayTitle}` : ''}
+          >
+            <LuPlus className="size-4" /> Add Routine
+          </button>
+        ) : null}
       </div>
 
       {selectedClass ? (
@@ -312,20 +354,20 @@ const ClassRoutineViewer = () => {
                         <th className="px-3.5 py-3 text-start">END TIME</th>
                         <th className="px-3.5 py-3 text-start">IS BREAK</th>
                         <th className="px-3.5 py-3 text-start">CLASS ROOM</th>
-                        <th className="px-3.5 py-3 text-start">ACTION</th>
+                        {showActions ? <th className="px-3.5 py-3 text-start">ACTION</th> : null}
                       </tr>
                     </thead>
 
                     <tbody className="divide-y divide-default-200">
                       {isLoading ? (
                         <tr className="text-default-800 font-normal whitespace-nowrap">
-                          <td className="px-3.5 py-4 text-sm" colSpan={7}>
+                          <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 7 : 6}>
                             Loading...
                           </td>
                         </tr>
                       ) : isWeeklyHolidayDay ? (
                         <tr className="text-default-800 font-normal whitespace-nowrap">
-                          <td className="px-3.5 py-4 text-sm" colSpan={7}>
+                          <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 7 : 6}>
                             <div className="rounded-md border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
                               <div className="font-semibold">Break for Holiday: {weeklyHolidayTitle}</div>
                             </div>
@@ -333,7 +375,7 @@ const ClassRoutineViewer = () => {
                         </tr>
                       ) : !dayRows.length ? (
                         <tr className="text-default-800 font-normal whitespace-nowrap">
-                          <td className="px-3.5 py-4 text-sm" colSpan={7}>
+                          <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 7 : 6}>
                             No routine for {dayTabs.find(d => d.value === activeDay)?.label || 'this day'}.
                           </td>
                         </tr>
@@ -348,41 +390,47 @@ const ClassRoutineViewer = () => {
                               <td className="px-3.5 py-3 text-sm">{fmtTime(rt.end_time) || '-'}</td>
                               <td className="px-3.5 py-3 text-sm">{rt.routine_type === 'BREAK' ? 'Yes' : 'No'}</td>
                               <td className="px-3.5 py-3 text-sm">{rt.room || '-'}</td>
-                              <td className="px-3.5 py-3">
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={e => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setEditing(rt);
-                                      requestAnimationFrame(() => openOverlay('#academic-routine-edit-modal'));
-                                    }}
-                                    className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                    aria-haspopup="dialog"
-                                    aria-expanded="false"
-                                    aria-controls="academic-routine-edit-modal"
-                                  >
-                                    <LuPencil className="size-4" />
-                                  </button>
+                              {showActions ? (
+                                <td className="px-3.5 py-3">
+                                  <div className="flex items-center gap-2">
+                                    {canEdit ? (
+                                      <button
+                                        type="button"
+                                        onClick={e => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setEditing(rt);
+                                          requestAnimationFrame(() => openOverlay('#academic-routine-edit-modal'));
+                                        }}
+                                        className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                        aria-haspopup="dialog"
+                                        aria-expanded="false"
+                                        aria-controls="academic-routine-edit-modal"
+                                      >
+                                        <LuPencil className="size-4" />
+                                      </button>
+                                    ) : null}
 
-                                  <button
-                                    type="button"
-                                    onClick={e => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setSelectedRoutine(rt);
-                                      requestAnimationFrame(() => openOverlay('#academic-routine-delete-modal'));
-                                    }}
-                                    className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                    aria-haspopup="dialog"
-                                    aria-expanded="false"
-                                    aria-controls="academic-routine-delete-modal"
-                                  >
-                                    <LuTrash2 className="size-4" />
-                                  </button>
-                                </div>
-                              </td>
+                                    {canDelete ? (
+                                      <button
+                                        type="button"
+                                        onClick={e => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setSelectedRoutine(rt);
+                                          requestAnimationFrame(() => openOverlay('#academic-routine-delete-modal'));
+                                        }}
+                                        className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                        aria-haspopup="dialog"
+                                        aria-expanded="false"
+                                        aria-controls="academic-routine-delete-modal"
+                                      >
+                                        <LuTrash2 className="size-4" />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              ) : null}
                             </tr>
                           ))
                         : null}
@@ -395,42 +443,49 @@ const ClassRoutineViewer = () => {
         ) : null}
       </div>
 
-      <DeleteModal routine={selectedRoutine} onConfirm={async () => {
-        if (!selectedRoutine?.id) return;
-        await apiJson(`/academic-routines/${selectedRoutine.id}/`, { method: 'DELETE' });
-        setSelectedRoutine(null);
-        setFlash('Routine deleted successfully.');
-        // Reload
-        if (schoolClass) {
-          const qs = new URLSearchParams();
-          qs.set('class', schoolClass);
-          if (section) qs.set('section', section);
-          const data = await apiJson(`/academic-routines/?${qs.toString()}`);
-          const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-          setItems(results);
-        }
-      }} />
+      {canDelete ? (
+        <DeleteModal
+          routine={selectedRoutine}
+          onConfirm={async () => {
+            if (!selectedRoutine?.id) return;
+            await apiJson(`/academic-routines/${selectedRoutine.id}/`, { method: 'DELETE' });
+            setSelectedRoutine(null);
+            setFlash('Routine deleted successfully.');
+            // Reload
+            if (schoolClass) {
+              const qs = new URLSearchParams();
+              qs.set('class', schoolClass);
+              if (section) qs.set('section', section);
+              const data = await apiJson(`/academic-routines/?${qs.toString()}`);
+              const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+              setItems(results);
+            }
+          }}
+        />
+      ) : null}
 
-      <AddAcademicRoutine
-        routine={editing}
-        schoolClass={schoolClass}
-        section={section}
-        defaultDayOfWeek={String(activeDay)}
-        blockedDays={weeklyHolidayDays}
-        blockedTitle={weeklyHolidayTitle}
-        onSaved={async msg => {
-          setFlash(msg || 'Saved successfully.');
-          // Reload
-          if (schoolClass) {
-            const qs = new URLSearchParams();
-            qs.set('class', schoolClass);
-            if (section) qs.set('section', section);
-            const data = await apiJson(`/academic-routines/?${qs.toString()}`);
-            const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-            setItems(results);
-          }
-        }}
-      />
+      {canCreate || canEdit ? (
+        <AddAcademicRoutine
+          routine={editing}
+          schoolClass={schoolClass}
+          section={section}
+          defaultDayOfWeek={String(activeDay)}
+          blockedDays={weeklyHolidayDays}
+          blockedTitle={weeklyHolidayTitle}
+          onSaved={async msg => {
+            setFlash(msg || 'Saved successfully.');
+            // Reload
+            if (schoolClass) {
+              const qs = new URLSearchParams();
+              qs.set('class', schoolClass);
+              if (section) qs.set('section', section);
+              const data = await apiJson(`/academic-routines/?${qs.toString()}`);
+              const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+              setItems(results);
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 };

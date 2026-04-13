@@ -18,6 +18,7 @@ from .serializers import (
     InboxNotificationSerializer,
     SendNotificationSerializer,
 )
+from .services import notify_announcement, notify_notice
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
@@ -50,7 +51,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         classroom = serializer.validated_data.get("classroom")
         if getattr(user, "role", None) == "TEACHER" and classroom and classroom.teacher_id != user.id:
             raise PermissionDenied("Not your classroom.")
-        serializer.save(created_by=user)
+        obj = serializer.save(created_by=user)
+        notify_announcement(obj)
 
 
 class NoticeViewSet(viewsets.ModelViewSet):
@@ -125,7 +127,8 @@ class NoticeViewSet(viewsets.ModelViewSet):
         return qs.distinct()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        obj = serializer.save(created_by=self.request.user)
+        notify_notice(obj)
 
     @action(detail=True, methods=["post"], url_path="pin")
     def pin(self, request, pk=None):
@@ -149,16 +152,17 @@ class NotificationInboxViewSet(viewsets.GenericViewSet):
 
     serializer_class = InboxNotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    rbac_path = "/portal/notifications"
 
     def get_queryset(self):
         user = self.request.user
-        now = timezone.now()
         qs = (
             NotificationRecipient.objects.filter(user=user)
             .select_related("notification", "notification__created_by")
         )
 
         # Only published + not expired.
+        now = timezone.now()
         qs = qs.filter(Q(notification__publish_at__isnull=True) | Q(notification__publish_at__lte=now))
         qs = qs.exclude(notification__expires_at__lt=now)
 
@@ -202,18 +206,14 @@ class NotificationInboxViewSet(viewsets.GenericViewSet):
     def mark_read(self, request, pk=None):
         obj = self.get_object()
         if not obj.is_read:
-            obj.is_read = True
-            obj.read_at = timezone.now()
-            obj.save(update_fields=["is_read", "read_at"])
+            obj.mark_read()
         return Response(InboxNotificationSerializer(obj).data)
 
     @action(detail=True, methods=["post"], url_path="unread")
     def mark_unread(self, request, pk=None):
         obj = self.get_object()
         if obj.is_read:
-            obj.is_read = False
-            obj.read_at = None
-            obj.save(update_fields=["is_read", "read_at"])
+            obj.mark_unread()
         return Response(InboxNotificationSerializer(obj).data)
 
     @action(detail=False, methods=["post"], url_path="read-all")
@@ -240,7 +240,8 @@ class NotificationInboxViewSet(viewsets.GenericViewSet):
         if not recipient_user_ids:
             return Response({"detail": "No recipients found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        n = Notification.objects.create(
+        n, recipient_count = Notification.create_for_users(
+            user_ids=recipient_user_ids,
             type=ser.validated_data["type"],
             priority=ser.validated_data["priority"],
             title=ser.validated_data["title"],
@@ -252,9 +253,4 @@ class NotificationInboxViewSet(viewsets.GenericViewSet):
             created_by=user,
         )
 
-        NotificationRecipient.objects.bulk_create(
-            [NotificationRecipient(notification=n, user_id=uid) for uid in recipient_user_ids],
-            ignore_conflicts=True,
-        )
-
-        return Response({"notification_id": n.id, "recipients": len(recipient_user_ids)}, status=status.HTTP_201_CREATED)
+        return Response({"notification_id": n.id, "recipients": recipient_count}, status=status.HTTP_201_CREATED)

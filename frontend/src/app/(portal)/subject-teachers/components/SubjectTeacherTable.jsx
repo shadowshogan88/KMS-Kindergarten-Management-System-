@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { Link } from 'react-router';
 
@@ -8,8 +8,26 @@ import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
 import Pagination from '@/components/Pagination';
+import { canPortal } from '@/utils/portalPermissions';
 
 const SubjectTeacherTable = () => {
+  const [user, setUser] = useState(() => authStorage.getUser());
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const studentClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
+  const studentSection = (user?.student_section || '').toString();
+
+  const canView = useMemo(() => canPortal('/portal/teachers', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/teachers', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/teachers', 'edit'), []);
+  const canDelete = useMemo(() => canPortal('/portal/teachers', 'delete'), []);
+  const showActions = !isStudent && (canEdit || canDelete);
+
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,14 +40,38 @@ const SubjectTeacherTable = () => {
   const load = async nextPage => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      setCount(0);
+      setPage(1);
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
-      const data = await apiJson(`/subject-teachers/?page=${nextPage}`);
-      const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-      setItems(results);
-      setCount(typeof data?.count === 'number' ? data.count : results.length);
-      setPage(nextPage);
+      if (isStudent) {
+        if (!studentClassId) {
+          setItems([]);
+          setCount(0);
+          setPage(1);
+          return;
+        }
+        const qs = new URLSearchParams();
+        qs.set('page', String(nextPage));
+        qs.set('class', studentClassId);
+        if (studentSection) qs.set('section', studentSection);
+        const data = await apiJson(`/subjects/?${qs.toString()}`);
+        const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        setItems(results);
+        setCount(typeof data?.count === 'number' ? data.count : results.length);
+        setPage(nextPage);
+      } else {
+        const data = await apiJson(`/subject-teachers/?page=${nextPage}`);
+        const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        setItems(results);
+        setCount(typeof data?.count === 'number' ? data.count : results.length);
+        setPage(nextPage);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load teachers.');
     } finally {
@@ -39,7 +81,8 @@ const SubjectTeacherTable = () => {
 
   useEffect(() => {
     load(1);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, studentClassId, studentSection, canView]);
 
   useEffect(() => {
     if (!flash) return;
@@ -85,20 +128,23 @@ const SubjectTeacherTable = () => {
     <div className="card">
       <div className="card-header flex justify-between items-center">
         <h6 className="card-title">Teachers</h6>
-        <button
-          className="btn btn-sm bg-primary text-white flex items-center gap-1"
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            openAddModal();
-          }}
-          type="button"
-        >
-          <LuPlus className="size-4" /> Add Teacher
-        </button>
+        {canCreate && !isStudent ? (
+          <button
+            className="btn btn-sm bg-primary text-white flex items-center gap-1"
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              openAddModal();
+            }}
+            type="button"
+          >
+            <LuPlus className="size-4" /> Add Teacher
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-col">
+        {!canView ? <div className="px-5 py-4 text-sm text-danger">You do not have permission to view teachers.</div> : null}
         {flash ? (
           <div className="px-5 pt-4">
             <div className="relative rounded-md border border-primary/20 bg-primary/10 px-4 py-3 pr-11 text-sm text-default-800">
@@ -132,18 +178,18 @@ const SubjectTeacherTable = () => {
                 <thead className="font-semibold whitespace-nowrap">
                   <tr className="text-sm text-default-800 divide-x divide-default-200">
                     <th className="px-3.5 py-3 text-start">#</th>
-                    <th className="px-3.5 py-3 text-start">Code</th>
+                    {isStudent ? <th className="px-3.5 py-3 text-start">Subject</th> : <th className="px-3.5 py-3 text-start">Code</th>}
                     <th className="px-3.5 py-3 text-start">Teacher Name</th>
                     <th className="px-3.5 py-3 text-start">Email</th>
                     <th className="px-3.5 py-3 text-start">Phone</th>
-                    <th className="px-3.5 py-3 text-start">Action</th>
+                    {showActions ? <th className="px-3.5 py-3 text-start">Action</th> : null}
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-default-200">
                   {isLoading ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={5}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 6 : 5}>
                         Loading...
                       </td>
                     </tr>
@@ -151,8 +197,8 @@ const SubjectTeacherTable = () => {
 
                   {!isLoading && items.length === 0 ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={5}>
-                        No teachers found.
+                      <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 6 : 5}>
+                        {isStudent ? 'No subject teachers found.' : 'No teachers found.'}
                       </td>
                     </tr>
                   ) : null}
@@ -160,43 +206,55 @@ const SubjectTeacherTable = () => {
                   {items.map(row => (
                     <tr key={row.id} className="text-default-800 font-normal whitespace-nowrap divide-x divide-default-200">
                       <td className="px-3.5 py-3 text-sm">{row.id}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.teacher_code || '-'}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.name}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.user_email || row.email || '-'}</td>
-                      <td className="px-3.5 py-3 text-sm">{row.phone || '-'}</td>
-                      <td className="px-3.5 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openEditModal(row);
-                            }}
-                            className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                            aria-haspopup="dialog"
-                            aria-expanded="false"
-                            aria-controls="subject-teacher-edit-modal"
-                          >
-                            <LuPencil className="size-4" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openDeleteModal(row);
-                            }}
-                            className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                            aria-haspopup="dialog"
-                            aria-expanded="false"
-                            aria-controls="subject-teacher-delete-modal"
-                          >
-                            <LuTrash2 className="size-4" />
-                          </button>
-                        </div>
+                      {isStudent ? (
+                        <td className="px-3.5 py-3 text-sm">{row.code ? `${row.code} - ${row.name}` : row.name}</td>
+                      ) : (
+                        <td className="px-3.5 py-3 text-sm">{row.teacher_code || '-'}</td>
+                      )}
+                      <td className="px-3.5 py-3 text-sm">{isStudent ? row.subject_teacher_label || '-' : row.name}</td>
+                      <td className="px-3.5 py-3 text-sm">
+                        {isStudent ? row.subject_teacher_email || '-' : row.user_email || row.email || '-'}
                       </td>
+                      <td className="px-3.5 py-3 text-sm">{isStudent ? row.subject_teacher_phone || '-' : row.phone || '-'}</td>
+                      {showActions ? (
+                        <td className="px-3.5 py-3">
+                          <div className="flex items-center gap-2">
+                            {canEdit ? (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openEditModal(row);
+                                }}
+                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="subject-teacher-edit-modal"
+                              >
+                                <LuPencil className="size-4" />
+                              </button>
+                            ) : null}
+
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openDeleteModal(row);
+                                }}
+                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="subject-teacher-delete-modal"
+                              >
+                                <LuTrash2 className="size-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -213,18 +271,30 @@ const SubjectTeacherTable = () => {
         </div>
       </div>
 
-      <DeleteModal subjectTeacher={selected} onConfirm={async () => {
-        await onDelete();
-        if (items.length === 1 && page > 1) await load(page - 1);
-        else await load(page);
-      }} />
-      <AddSubjectTeacher subjectTeacher={editing} onCreated={async p => {
-        await onCreate(p);
-        await load(1);
-      }} onUpdated={async (d, p) => {
-        await onUpdate(d, p);
-        await load(page);
-      }} onRefresh={() => load(page)} />
+      {canDelete && !isStudent ? (
+        <DeleteModal
+          subjectTeacher={selected}
+          onConfirm={async () => {
+            await onDelete();
+            if (items.length === 1 && page > 1) await load(page - 1);
+            else await load(page);
+          }}
+        />
+      ) : null}
+      {canCreate && !isStudent ? (
+        <AddSubjectTeacher
+          subjectTeacher={editing}
+          onCreated={async p => {
+            await onCreate(p);
+            await load(1);
+          }}
+          onUpdated={async (d, p) => {
+            await onUpdate(d, p);
+            await load(page);
+          }}
+          onRefresh={() => load(page)}
+        />
+      ) : null}
     </div>
   );
 };

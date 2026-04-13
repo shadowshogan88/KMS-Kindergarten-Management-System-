@@ -18,6 +18,7 @@ const StatusIcon = ({ status }) => {
 const AcademicAttendanceReportPage = () => {
   const [error, setError] = useState('');
   const [flash, setFlash] = useState('');
+  const [user, setUser] = useState(() => authStorage.getUser());
 
   const [classOptions, setClassOptions] = useState([]);
   const [selectedClassKey, setSelectedClassKey] = useState('');
@@ -33,11 +34,25 @@ const AcademicAttendanceReportPage = () => {
     return { school_class: school_class || '', section: (section || '').toUpperCase() };
   }, [selectedClassKey]);
 
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const studentClassKey = useMemo(() => {
+    const id = user?.student_school_class_id;
+    if (!id) return '';
+    const sec = String(user?.student_section || '').trim().toUpperCase();
+    return `${id}:${sec}`;
+  }, [user?.student_school_class_id, user?.student_section]);
+
   useEffect(() => {
     if (!flash) return;
     const t = setTimeout(() => setFlash(''), 6000);
     return () => clearTimeout(t);
   }, [flash]);
+
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
 
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
@@ -59,6 +74,23 @@ const AcademicAttendanceReportPage = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isStudent) return;
+    if (!studentClassKey) return;
+    if (selectedClassKey) return;
+    setSelectedClassKey(studentClassKey);
+  }, [isStudent, selectedClassKey, studentClassKey]);
+
+  useEffect(() => {
+    if (!isStudent) return;
+    if (!classOptions.length) return;
+    if (selectedClassKey) return;
+
+    const preferred = studentClassKey && classOptions.some(o => o?.value === studentClassKey) ? studentClassKey : '';
+    const first = String(classOptions[0]?.value || '');
+    setSelectedClassKey(preferred || first);
+  }, [classOptions, isStudent, selectedClassKey, studentClassKey]);
 
   const load = async () => {
     const canUseApi = Boolean(authStorage.getAccess());
@@ -92,10 +124,14 @@ const AcademicAttendanceReportPage = () => {
 
   const rows = useMemo(() => {
     const list = Array.isArray(data?.students) ? data.students : [];
+    if (isStudent && user?.student_id) {
+      const sid = Number(user.student_id);
+      return list.filter(s => Number(s?.id) === sid);
+    }
     const q = (search || '').trim().toLowerCase();
     if (!q) return list;
     return list.filter(s => String(s?.name || '').toLowerCase().includes(q));
-  }, [data?.students, search]);
+  }, [data?.students, isStudent, search, user?.student_id]);
 
   const days = useMemo(() => (Array.isArray(data?.days) ? data.days : []), [data?.days]);
 
@@ -113,7 +149,7 @@ const AcademicAttendanceReportPage = () => {
               className="form-input"
               value={selectedClassKey}
               onChange={e => setSelectedClassKey(e.target.value)}
-              disabled={!authStorage.getAccess()}
+              disabled={!authStorage.getAccess() || isStudent}
             >
               <option value="">{classOptions.length ? 'Select Class' : 'Loading...'}</option>
               {classOptions.map(opt => (
@@ -138,19 +174,21 @@ const AcademicAttendanceReportPage = () => {
             />
           </div>
 
-          <div className="relative">
-            <input
-              className="ps-11 form-input"
-              placeholder="Search student..."
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              disabled={!data}
-            />
-            <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-4">
-              <LuSearch className="size-4 text-default-500" />
+          {!isStudent ? (
+            <div className="relative">
+              <input
+                className="ps-11 form-input"
+                placeholder="Search student..."
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                disabled={!data}
+              />
+              <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-4">
+                <LuSearch className="size-4 text-default-500" />
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 

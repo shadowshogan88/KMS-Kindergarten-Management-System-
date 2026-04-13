@@ -13,6 +13,8 @@ class HomeworkForm(forms.ModelForm):
             "class_name",
             "section",
             "subject",
+            "special_live_class",
+            "class_date",
             "description",
             "pdf_file",
             "due_date",

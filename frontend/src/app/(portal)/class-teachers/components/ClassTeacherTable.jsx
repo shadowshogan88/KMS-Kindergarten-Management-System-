@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LuPencil, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { Link } from 'react-router';
 
@@ -8,8 +8,23 @@ import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
 import Pagination from '@/components/Pagination';
+import { canPortal } from '@/utils/portalPermissions';
 
 const ClassTeacherTable = () => {
+  const [user, setUser] = useState(() => authStorage.getUser());
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const canView = useMemo(() => canPortal('/portal/class-teachers', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/class-teachers', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/class-teachers', 'edit'), []);
+  const canDelete = useMemo(() => canPortal('/portal/class-teachers', 'delete'), []);
+  const showActions = !isStudent && (canEdit || canDelete);
+
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,6 +37,12 @@ const ClassTeacherTable = () => {
   const load = async nextPage => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      setCount(0);
+      setPage(1);
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
@@ -39,7 +60,8 @@ const ClassTeacherTable = () => {
 
   useEffect(() => {
     load(1);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canView, isStudent]);
 
   useEffect(() => {
     if (!flash) return;
@@ -84,20 +106,23 @@ const ClassTeacherTable = () => {
     <div className="card">
       <div className="card-header flex justify-between items-center">
         <h6 className="card-title">Class Teachers</h6>
-        <button
-          className="btn btn-sm bg-primary text-white flex items-center gap-1"
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            openAddModal();
-          }}
-          type="button"
-        >
-          <LuPlus className="size-4" /> Add Class Teacher
-        </button>
+        {canCreate && !isStudent ? (
+          <button
+            className="btn btn-sm bg-primary text-white flex items-center gap-1"
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              openAddModal();
+            }}
+            type="button"
+          >
+            <LuPlus className="size-4" /> Add Class Teacher
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-col">
+        {!canView ? <div className="px-5 py-4 text-sm text-danger">You do not have permission to view class teachers.</div> : null}
         {flash ? (
           <div className="px-5 pt-4">
             <div className="relative rounded-md border border-primary/20 bg-primary/10 px-4 py-3 pr-11 text-sm text-default-800">
@@ -133,14 +158,16 @@ const ClassTeacherTable = () => {
                     <th className="px-3.5 py-3 text-start">#</th>
                     <th className="px-3.5 py-3 text-start">Class</th>
                     <th className="px-3.5 py-3 text-start">Teacher</th>
-                    <th className="px-3.5 py-3 text-start">Action</th>
+                    <th className="px-3.5 py-3 text-start">Email</th>
+                    <th className="px-3.5 py-3 text-start">Phone</th>
+                    {showActions ? <th className="px-3.5 py-3 text-start">Action</th> : null}
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-default-200">
                   {isLoading ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 6 : 5}>
                         Loading...
                       </td>
                     </tr>
@@ -148,7 +175,7 @@ const ClassTeacherTable = () => {
 
                   {!isLoading && items.length === 0 ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={4}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 6 : 5}>
                         No class teachers found.
                       </td>
                     </tr>
@@ -159,39 +186,47 @@ const ClassTeacherTable = () => {
                       <td className="px-3.5 py-3 text-sm">{row.id}</td>
                       <td className="px-3.5 py-3 text-sm">{row.classroom_label || '-'}</td>
                       <td className="px-3.5 py-3 text-sm">{row.teacher_label || '-'}</td>
-                      <td className="px-3.5 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openEditModal(row);
-                            }}
-                            className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                            aria-haspopup="dialog"
-                            aria-expanded="false"
-                            aria-controls="class-teacher-edit-modal"
-                          >
-                            <LuPencil className="size-4" />
-                          </button>
+                      <td className="px-3.5 py-3 text-sm">{row.teacher_email || '-'}</td>
+                      <td className="px-3.5 py-3 text-sm">{row.teacher_phone || '-'}</td>
+                      {showActions ? (
+                        <td className="px-3.5 py-3">
+                          <div className="flex items-center gap-2">
+                            {canEdit ? (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openEditModal(row);
+                                }}
+                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="class-teacher-edit-modal"
+                              >
+                                <LuPencil className="size-4" />
+                              </button>
+                            ) : null}
 
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openDeleteModal(row);
-                            }}
-                            className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                            aria-haspopup="dialog"
-                            aria-expanded="false"
-                            aria-controls="class-teacher-delete-modal"
-                          >
-                            <LuTrash2 className="size-4" />
-                          </button>
-                        </div>
-                      </td>
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openDeleteModal(row);
+                                }}
+                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                aria-controls="class-teacher-delete-modal"
+                              >
+                                <LuTrash2 className="size-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -208,18 +243,30 @@ const ClassTeacherTable = () => {
         </div>
       </div>
 
-      <DeleteModal classTeacher={selected} onConfirm={async () => {
-        await onDelete();
-        if (items.length === 1 && page > 1) await load(page - 1);
-        else await load(page);
-      }} />
-      <AddClassTeacher classTeacher={editing} onCreated={async p => {
-        await onCreate(p);
-        await load(1);
-      }} onUpdated={async (d, p) => {
-        await onUpdate(d, p);
-        await load(page);
-      }} onRefresh={() => load(page)} />
+      {canDelete && !isStudent ? (
+        <DeleteModal
+          classTeacher={selected}
+          onConfirm={async () => {
+            await onDelete();
+            if (items.length === 1 && page > 1) await load(page - 1);
+            else await load(page);
+          }}
+        />
+      ) : null}
+      {canCreate && !isStudent ? (
+        <AddClassTeacher
+          classTeacher={editing}
+          onCreated={async p => {
+            await onCreate(p);
+            await load(1);
+          }}
+          onUpdated={async (d, p) => {
+            await onUpdate(d, p);
+            await load(page);
+          }}
+          onRefresh={() => load(page)}
+        />
+      ) : null}
     </div>
   );
 };

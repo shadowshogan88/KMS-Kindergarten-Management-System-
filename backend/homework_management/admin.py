@@ -5,8 +5,20 @@ from .models import Homework, HomeworkGradeLog, HomeworkSubmission, SubmissionAn
 
 @admin.register(Homework)
 class HomeworkAdmin(admin.ModelAdmin):
-    list_display = ("title", "short_description", "homework_type", "class_name", "section", "subject", "due_date", "status", "created_by")
-    list_filter = ("homework_type", "status", "class_name", "subject")
+    list_display = (
+        "title",
+        "short_description",
+        "homework_type",
+        "class_name",
+        "section",
+        "subject",
+        "class_date",
+        "special_live_class",
+        "due_date",
+        "status",
+        "created_by",
+    )
+    list_filter = ("homework_type", "status", "class_name", "subject", "class_date")
     search_fields = ("title", "short_description", "description")
 
 

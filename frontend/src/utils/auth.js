@@ -51,6 +51,12 @@ export const authStorage = {
     const raw = JSON.stringify(user);
     if (this.isTemp()) sessionStorage.setItem('kms_user', raw);
     else localStorage.setItem('kms_user', raw);
+
+    try {
+      window.dispatchEvent(new Event('kms_user_updated'));
+    } catch {
+      // ignore
+    }
   },
   getAvatar() {
     return sessionStorage.getItem('kms_user_avatar') || localStorage.getItem('kms_user_avatar') || '';

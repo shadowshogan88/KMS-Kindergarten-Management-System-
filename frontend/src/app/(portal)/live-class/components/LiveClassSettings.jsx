@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
-import { LuLink2, LuPencil, LuPlus } from 'react-icons/lu';
+import { Link, useSearchParams } from 'react-router';
+import { LuBookOpen, LuPencil, LuPlus } from 'react-icons/lu';
+import { SiGooglemeet } from 'react-icons/si';
 
 import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
+import { canPortal } from '@/utils/portalPermissions';
 
 import EditMeetTimeModal from './EditMeetTimeModal';
 import LiveDateOverrideModal from './LiveDateOverrideModal';
@@ -26,14 +28,37 @@ const toLocalDateStr = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2
 const fmtTime = t => (t ? String(t).slice(0, 5) : '');
 
 const LiveClassSettings = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialClass = searchParams.get('class') || '';
+  const initialSection = searchParams.get('section') || '';
+
   const [flash, setFlash] = useState('');
   const [status, setStatus] = useState({ connected: false, calendar_id: '' });
   const [statusError, setStatusError] = useState('');
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
+  const [user, setUser] = useState(() => authStorage.getUser());
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const studentClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
+  const studentClassLabel = String(user?.student_school_class_label || '').trim();
+  const studentSection = (user?.student_section || '').toString();
+
+  const canView = useMemo(() => canPortal('/portal/live-class', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/live-class', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/live-class', 'edit'), []);
+  const showMeetSetup = !isStudent && canEdit;
+  const canViewHomework = useMemo(() => canPortal('/portal/homework', 'view'), []);
+  const canCreateHomework = useMemo(() => canPortal('/portal/homework', 'create'), []);
+
   const [classes, setClasses] = useState([]);
-  const [schoolClass, setSchoolClass] = useState('');
-  const [section, setSection] = useState('');
+  const [schoolClass, setSchoolClass] = useState(initialClass);
+  const [section, setSection] = useState(initialSection);
   const [isLoadingSchoolClasses, setIsLoadingSchoolClasses] = useState(false);
   const [classError, setClassError] = useState('');
 
@@ -41,6 +66,8 @@ const LiveClassSettings = () => {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [homeworksBySubject, setHomeworksBySubject] = useState(() => ({}));
+  const [isLoadingHomeworks, setIsLoadingHomeworks] = useState(false);
   const [editingMeet, setEditingMeet] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -93,8 +120,10 @@ const LiveClassSettings = () => {
   };
 
   useEffect(() => {
+    if (!showMeetSetup) return;
     loadStatus();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMeetSetup]);
 
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
@@ -118,28 +147,55 @@ const LiveClassSettings = () => {
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) return;
 
     let isMounted = true;
     setClassError('');
     setIsLoadingSchoolClasses(true);
-    apiJson('/academic-classes/simple/')
-      .then(data => {
-        if (!isMounted) return;
-        setClasses(Array.isArray(data) ? data : []);
-      })
-      .catch(e => {
-        if (!isMounted) return;
-        setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoadingSchoolClasses(false);
-      });
+    if (isStudent) {
+      const fallbackName = studentClassLabel || 'My Class';
+      const sections = studentSection ? [studentSection.toUpperCase()] : [];
+      setClasses(studentClassId ? [{ id: studentClassId, name: fallbackName, sections }] : []);
+      setIsLoadingSchoolClasses(false);
+    } else {
+      apiJson('/academic-classes/simple/')
+        .then(data => {
+          if (!isMounted) return;
+          setClasses(Array.isArray(data) ? data : []);
+        })
+        .catch(e => {
+          if (!isMounted) return;
+          setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
+        })
+        .finally(() => {
+          if (!isMounted) return;
+          setIsLoadingSchoolClasses(false);
+        });
+    }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [canView, isStudent, studentClassId, studentClassLabel, studentSection]);
+
+  useEffect(() => {
+    if (!isStudent) return;
+    if (!studentClassId) return;
+    if (schoolClass !== studentClassId) setSchoolClass(studentClassId);
+    const sec = (studentSection || '').trim().toUpperCase();
+    if (section !== sec) setSection(sec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, studentClassId, studentSection]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (schoolClass) next.set('class', schoolClass);
+    else next.delete('class');
+    if (section) next.set('section', section);
+    else next.delete('section');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolClass, section]);
 
   const selectedClass = useMemo(() => classes.find(c => String(c?.id) === String(schoolClass)) || null, [classes, schoolClass]);
   const sectionOptions = useMemo(() => (Array.isArray(selectedClass?.sections) ? selectedClass.sections : []), [selectedClass?.sections]);
@@ -158,6 +214,10 @@ const LiveClassSettings = () => {
   const load = async () => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      return;
+    }
     if (!schoolClass) {
       setItems([]);
       return;
@@ -181,7 +241,7 @@ const LiveClassSettings = () => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolClass, section]);
+  }, [schoolClass, section, canView]);
 
   useEffect(() => {
     // Allow auto-selecting a meaningful date after class/section/month changes.
@@ -191,6 +251,10 @@ const LiveClassSettings = () => {
   const loadCalendar = async monthDate => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setCalendarItems([]);
+      return;
+    }
     if (!schoolClass) {
       setCalendarItems([]);
       return;
@@ -221,6 +285,10 @@ const LiveClassSettings = () => {
   const loadHolidayCalendar = async monthDate => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setHolidayCalendarItems([]);
+      return;
+    }
 
     try {
       const year = monthDate.getFullYear();
@@ -245,7 +313,48 @@ const LiveClassSettings = () => {
     loadCalendar(calendarMonth);
     loadHolidayCalendar(calendarMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schoolClass, section, calendarMonth]);
+  }, [schoolClass, section, calendarMonth, canView]);
+
+  const loadHomeworks = async () => {
+    const canUseApi = Boolean(authStorage.getAccess());
+    if (!canUseApi) return;
+    if (!canViewHomework) {
+      setHomeworksBySubject({});
+      return;
+    }
+    if (!schoolClass || !selectedDate) {
+      setHomeworksBySubject({});
+      return;
+    }
+
+    setIsLoadingHomeworks(true);
+    try {
+      const qs = new URLSearchParams();
+      qs.set('type', 'HOMEWORK');
+      qs.set('class', String(schoolClass));
+      if (sectionOptions.length && section) qs.set('section', String(section));
+      qs.set('date', selectedDate);
+      const data = await apiJson(`/homeworks/?${qs.toString()}`);
+      const results = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+      const map = {};
+      for (const hw of results) {
+        const sid = hw?.subject != null ? String(hw.subject) : '';
+        if (!sid) continue;
+        if (!map[sid]) map[sid] = [];
+        map[sid].push(hw);
+      }
+      setHomeworksBySubject(map);
+    } catch {
+      setHomeworksBySubject({});
+    } finally {
+      setIsLoadingHomeworks(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHomeworks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolClass, section, selectedDate, canViewHomework]);
 
   useEffect(() => {
     if (!schoolClass) return;
@@ -275,7 +384,30 @@ const LiveClassSettings = () => {
       .sort((a, b) => String(a?.start_time || '').localeCompare(String(b?.start_time || '')));
   }, [calendarItems, selectedDate]);
 
+  const buildHomeworkListUrl = ev => {
+    const qs = new URLSearchParams();
+    if (schoolClass) qs.set('class', String(schoolClass));
+    if (sectionOptions.length && section) qs.set('section', String(section));
+    if (selectedDate) qs.set('date', String(selectedDate));
+    if (ev?.subject_id != null) qs.set('subject', String(ev.subject_id));
+    return `/portal/homework?${qs.toString()}`;
+  };
+
+  const buildHomeworkCreateUrl = ev => {
+    const qs = new URLSearchParams();
+    qs.set('src', 'live-calendar');
+    if (schoolClass) qs.set('class', String(schoolClass));
+    if (sectionOptions.length) qs.set('section', String(section || ''));
+    if (ev?.subject_id != null) qs.set('subject', String(ev.subject_id));
+    if (selectedDate) {
+      qs.set('class_date', String(selectedDate));
+      qs.set('due_date', `${String(selectedDate)}T23:59`);
+    }
+    return `/portal/homework/create?${qs.toString()}`;
+  };
+
   const connect = async () => {
+    if (!showMeetSetup) return;
     setFlash('');
     try {
       const data = await apiJson('/google/oauth/start/');
@@ -330,33 +462,41 @@ const LiveClassSettings = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="card">
-        <div className="card-header flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
-          <h6 className="card-title">Google Meet Setup</h6>
-          <button className="btn btn-sm bg-primary text-white flex items-center gap-1" type="button" onClick={connect} disabled={isLoadingStatus}>
-            <LuPlus className="size-4" /> Connect Google
-          </button>
-        </div>
-        <div className="p-5">
-          {!authStorage.getAccess() ? (
-            <div className="text-sm text-default-600">
-              Please sign in from <Link className="text-primary underline" to="/portal">Portal</Link>.
+      <div className="flex flex-col gap-4">
+      {!canView ? <div className="text-sm text-danger">You do not have permission to view this page.</div> : null}
+      {showMeetSetup ? (
+        <div className="card">
+          <div className="card-header flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+            <h6 className="card-title">Google Meet Setup</h6>
+            <button
+              className="btn btn-sm bg-primary text-white flex items-center gap-1"
+              type="button"
+              onClick={connect}
+              disabled={isLoadingStatus}
+            >
+              <LuPlus className="size-4" /> Connect Google
+            </button>
+          </div>
+          <div className="p-5">
+            {!authStorage.getAccess() ? (
+              <div className="text-sm text-default-600">
+                Please sign in from <Link className="text-primary underline" to="/portal">Portal</Link>.
+              </div>
+            ) : null}
+
+            {statusError ? <div className="text-sm text-danger">{statusError}</div> : null}
+            {flash ? <div className="mt-3 text-sm text-default-800">{flash}</div> : null}
+
+            <div className="mt-3 text-sm text-default-700">
+              Status:{' '}
+              <span className={`font-semibold ${status.connected ? 'text-success' : 'text-danger'}`}>
+                {isLoadingStatus ? 'Loading...' : status.connected ? 'Connected' : 'Not connected'}
+              </span>
+              {status.calendar_id ? <span className="text-default-500"> (Calendar: {status.calendar_id})</span> : null}
             </div>
-          ) : null}
-
-          {statusError ? <div className="text-sm text-danger">{statusError}</div> : null}
-          {flash ? <div className="mt-3 text-sm text-default-800">{flash}</div> : null}
-
-          <div className="mt-3 text-sm text-default-700">
-            Status:{' '}
-            <span className={`font-semibold ${status.connected ? 'text-success' : 'text-danger'}`}>
-              {isLoadingStatus ? 'Loading...' : status.connected ? 'Connected' : 'Not connected'}
-            </span>
-            {status.calendar_id ? <span className="text-default-500"> (Calendar: {status.calendar_id})</span> : null}
           </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="card">
         <div className="card-header flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
@@ -371,7 +511,7 @@ const LiveClassSettings = () => {
                 className="form-input"
                 value={schoolClass}
                 onChange={e => setSchoolClass(e.target.value)}
-                disabled={isLoadingSchoolClasses}
+                disabled={isLoadingSchoolClasses || isStudent}
               >
                 <option value="">{isLoadingSchoolClasses ? 'Loading classes...' : 'Select class'}</option>
                 {classes.map(c => (
@@ -391,7 +531,7 @@ const LiveClassSettings = () => {
                 className="form-input"
                 value={section}
                 onChange={e => setSection(e.target.value)}
-                disabled={!schoolClass || sectionOptions.length === 0}
+                disabled={!schoolClass || sectionOptions.length === 0 || isStudent}
               >
                 <option value="">{sectionOptions.length ? 'Select section' : 'No sections'}</option>
                 {sectionOptions.map(s => (
@@ -496,7 +636,7 @@ const LiveClassSettings = () => {
                                 </td>
                                 <td className="px-3.5 py-3 text-sm">{row.room || '-'}</td>
                                 <td className="px-3.5 py-3 text-sm">
-                                  {!shouldHideLiveToggle(row) ? (
+                                  {canEdit && !isStudent && !shouldHideLiveToggle(row) ? (
                                     <input
                                       type="checkbox"
                                       checked={Boolean(row.live_enabled)}
@@ -517,33 +657,37 @@ const LiveClassSettings = () => {
                                     {row.meet_link ? (
                                       <>
                                         <a
-                                          className="text-primary underline text-sm"
+                                          className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
                                           href={row.meet_link}
                                           target="_blank"
                                           rel="noreferrer"
+                                          title="Open Google Meet"
+                                          aria-label="Open Google Meet"
                                         >
-                                          <LuLink2 className="inline size-4" /> Open
+                                          <SiGooglemeet className="size-4" />
                                         </a>
-                                        <button
-                                          type="button"
-                                          className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                          onClick={e => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setEditingMeet(row);
-                                            requestAnimationFrame(() => openOverlay('#meet-time-edit-modal'));
-                                          }}
-                                          aria-haspopup="dialog"
-                                          aria-expanded="false"
-                                          aria-controls="meet-time-edit-modal"
-                                        >
-                                          <LuPencil className="size-4" />
-                                        </button>
+                                        {canEdit && !isStudent ? (
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                            onClick={e => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              setEditingMeet(row);
+                                              requestAnimationFrame(() => openOverlay('#meet-time-edit-modal'));
+                                            }}
+                                            aria-haspopup="dialog"
+                                            aria-expanded="false"
+                                            aria-controls="meet-time-edit-modal"
+                                          >
+                                            <LuPencil className="size-4" />
+                                          </button>
+                                        ) : null}
                                       </>
                                     ) : (
                                       <span className="text-default-500 text-sm">-</span>
                                     )}
-                                    {!shouldHideGenerate(row) ? (
+                                    {canEdit && !isStudent && !shouldHideGenerate(row) ? (
                                       <button
                                         type="button"
                                         className="btn btn-sm bg-primary text-white"
@@ -577,13 +721,15 @@ const LiveClassSettings = () => {
         </div>
       </div>
 
-      <EditMeetTimeModal
-        routine={editingMeet}
-        onSaved={async msg => {
-          setFlash(msg || 'Meeting time updated.');
-          await load();
-        }}
-      />
+      {canEdit && !isStudent ? (
+        <EditMeetTimeModal
+          routine={editingMeet}
+          onSaved={async msg => {
+            setFlash(msg || 'Meeting time updated.');
+            await load();
+          }}
+        />
+      ) : null}
 
       <div className="card">
         <div className="card-header flex justify-between items-center">
@@ -642,27 +788,60 @@ const LiveClassSettings = () => {
                         {ev.subject_teacher_label ? (
                           <div className="mt-1 text-xs text-default-600">Teacher: {ev.subject_teacher_label}</div>
                         ) : null}
+                        {canViewHomework && ev?.subject_id != null ? (
+                          <div className="mt-1 text-xs text-default-600">
+                            <Link
+                              className="btn btn-xs bg-default-100 hover:bg-primary/10 hover:text-primary text-default-700 inline-flex items-center gap-1"
+                              to={buildHomeworkListUrl(ev)}
+                              title="Homework"
+                            >
+                              <LuBookOpen className="size-4" />
+                              <span>
+                                Homework{homeworksBySubject?.[String(ev.subject_id)]?.length ? ` (${homeworksBySubject[String(ev.subject_id)].length})` : ''}
+                              </span>
+                            </Link>
+                            {isLoadingHomeworks ? <span className="ml-2 text-default-500">Loading...</span> : null}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="flex items-center gap-2">
                         {ev.meet_link ? (
-                          <a className="text-primary underline text-sm" href={ev.meet_link} target="_blank" rel="noreferrer">
-                            <LuLink2 className="inline size-4" /> Open
+                          <a
+                            className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                            href={ev.meet_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open Google Meet"
+                            aria-label="Open Google Meet"
+                          >
+                            <SiGooglemeet className="size-4" />
                           </a>
                         ) : (
                           <span className="text-default-500 text-sm">-</span>
                         )}
-                        <button
-                          type="button"
-                          className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                          onClick={() => {
-                            setOverrideEditing(ev);
-                            requestAnimationFrame(() => openOverlay('#live-override-modal'));
-                          }}
-                          disabled={ev.routine_type === 'BREAK' || ev.subject_type === 'PRACTICAL'}
-                        >
-                          <LuPencil className="size-4" />
-                        </button>
+                        {canCreateHomework && !isStudent && ev?.subject_id != null ? (
+                          <Link
+                            className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                            title="Add Homework"
+                            to={buildHomeworkCreateUrl(ev)}
+                          >
+                            <LuPlus className="size-4" />
+                          </Link>
+                        ) : null}
+                        {canEdit && !isStudent ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                            onClick={() => {
+                              setOverrideEditing(ev);
+                              requestAnimationFrame(() => openOverlay('#live-override-modal'));
+                            }}
+                            disabled={ev.routine_type === 'BREAK' || ev.subject_type === 'PRACTICAL'}
+                          >
+                            <LuPencil className="size-4" />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -674,15 +853,17 @@ const LiveClassSettings = () => {
         </div>
       </div>
 
-      <LiveDateOverrideModal
-        event={overrideEditing}
-        status={status}
-        onSaved={async msg => {
-          setFlash(msg || 'Saved.');
-          await loadCalendar(calendarMonth);
-          await load();
-        }}
-      />
+      {canEdit && !isStudent ? (
+        <LiveDateOverrideModal
+          event={overrideEditing}
+          status={status}
+          onSaved={async msg => {
+            setFlash(msg || 'Saved.');
+            await loadCalendar(calendarMonth);
+            await load();
+          }}
+        />
+      ) : null}
     </div>
   );
 };

@@ -17,6 +17,7 @@ class HomeworkSerializer(serializers.ModelSerializer):
     classroom_label = serializers.CharField(read_only=True)
     subject_label = serializers.CharField(source="subject.name", read_only=True)
     created_by_label = serializers.SerializerMethodField(read_only=True)
+    special_live_class_title = serializers.CharField(source="special_live_class.title", read_only=True)
 
     class Meta:
         model = Homework
@@ -31,6 +32,9 @@ class HomeworkSerializer(serializers.ModelSerializer):
             "classroom_label",
             "subject",
             "subject_label",
+            "special_live_class",
+            "special_live_class_title",
+            "class_date",
             "description",
             "pdf_file",
             "created_by",
@@ -57,6 +61,7 @@ class SubmissionImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubmissionImage
         fields = ("id", "submission", "image", "page_number", "created_at", "updated_at")
+        validators = []
         extra_kwargs = {
             "page_number": {"required": False},
         }
@@ -77,8 +82,17 @@ class SubmissionAnnotationSerializer(serializers.ModelSerializer):
 
 class HomeworkSubmissionSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField(read_only=True)
+    student_username = serializers.CharField(source="student.user.username", read_only=True)
+    student_email = serializers.SerializerMethodField(read_only=True)
+    student_phone = serializers.SerializerMethodField(read_only=True)
+    parent_name = serializers.SerializerMethodField(read_only=True)
+    parent_email = serializers.CharField(source="student.parent.email", read_only=True)
+    parent_phone = serializers.CharField(source="student.parent.phone", read_only=True)
     homework_title = serializers.CharField(source="homework.title", read_only=True)
     homework_due_date = serializers.DateTimeField(source="homework.due_date", read_only=True)
+    latest_graded_by = serializers.SerializerMethodField(read_only=True)
+    latest_graded_at = serializers.SerializerMethodField(read_only=True)
+    marks_display = serializers.SerializerMethodField(read_only=True)
     images = SubmissionImageSerializer(many=True, read_only=True)
 
     class Meta:
@@ -90,16 +104,27 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
             "homework_due_date",
             "student",
             "student_name",
+            "student_username",
+            "student_email",
+            "student_phone",
+            "parent_name",
+            "parent_email",
+            "parent_phone",
             "content_html",
             "submitted_at",
             "status",
             "is_late_submission",
             "teacher_marks",
+            "teacher_total_marks",
+            "marks_display",
             "teacher_feedback",
+            "latest_graded_by",
+            "latest_graded_at",
             "images",
             "created_at",
             "updated_at",
         )
+        validators = []
         extra_kwargs = {
             "student": {"required": False},
             "submitted_at": {"required": False, "allow_null": True},
@@ -109,15 +134,51 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
         s = obj.student
         return f"{s.first_name} {s.last_name}".strip()
 
+    def get_student_email(self, obj):
+        return (getattr(obj.student, "email", "") or getattr(getattr(obj.student, "user", None), "email", "") or "").strip()
+
+    def get_student_phone(self, obj):
+        return (getattr(obj.student, "phone", "") or getattr(getattr(obj.student, "user", None), "phone", "") or "").strip()
+
+    def get_parent_name(self, obj):
+        parent = getattr(obj.student, "parent", None)
+        if not parent:
+            return ""
+        return (parent.get_full_name() or "").strip() or parent.username
+
+    def get_latest_graded_by(self, obj):
+        latest = obj.grade_logs.order_by("-graded_at", "-id").first()
+        if not latest or not latest.graded_by:
+            return ""
+        u = latest.graded_by
+        return (u.get_full_name() or "").strip() or u.username
+
+    def get_latest_graded_at(self, obj):
+        latest = obj.grade_logs.order_by("-graded_at", "-id").first()
+        return latest.graded_at if latest else None
+
+    def get_marks_display(self, obj):
+        if obj.teacher_marks is None:
+            return ""
+        if obj.teacher_total_marks is None:
+            return f"{obj.teacher_marks}"
+        return f"{obj.teacher_marks}/{obj.teacher_total_marks}"
+
 
 class HomeworkGradeLogSerializer(serializers.ModelSerializer):
     graded_by_label = serializers.SerializerMethodField(read_only=True)
+    marks_display = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = HomeworkGradeLog
-        fields = ("id", "submission", "marks", "graded_by", "graded_by_label", "graded_at")
+        fields = ("id", "submission", "marks", "total_marks", "marks_display", "graded_by", "graded_by_label", "graded_at")
         read_only_fields = ("graded_by", "graded_at")
 
     def get_graded_by_label(self, obj):
         u = obj.graded_by
         return (u.get_full_name() or "").strip() or u.username
+
+    def get_marks_display(self, obj):
+        if obj.total_marks is None:
+            return f"{obj.marks}"
+        return f"{obj.marks}/{obj.total_marks}"

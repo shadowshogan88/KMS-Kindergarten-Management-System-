@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TbSearch } from 'react-icons/tb';
 import SimpleBar from 'simplebar-react';
 import SidenavToggle from './SidenavToggle';
+import DigitalClock from './DigitalClock';
 import {
   LuBellRing,
   LuBookOpen,
@@ -172,6 +173,7 @@ const Topbar = () => {
         method: 'POST'
       });
       setAllItems(prev => prev.map(x => x.id === receiptId ? updated : x));
+      window.dispatchEvent(new CustomEvent('kms_notifications_changed'));
       loadSummary();
     } catch {
       // ignore
@@ -183,6 +185,7 @@ const Topbar = () => {
       await apiJson('/inbox-notifications/read-all/', {
         method: 'POST'
       });
+      window.dispatchEvent(new CustomEvent('kms_notifications_changed'));
       loadItems();
       loadSummary();
     } catch {
@@ -193,11 +196,19 @@ const Topbar = () => {
   useEffect(() => {
     loadSummary();
     loadItems();
+    const handleNotificationsChanged = () => {
+      loadSummary();
+      loadItems();
+    };
+    window.addEventListener('kms_notifications_changed', handleNotificationsChanged);
     const t = setInterval(() => {
       loadSummary();
       loadItems();
     }, 30000);
-    return () => clearInterval(t);
+    return () => {
+      window.removeEventListener('kms_notifications_changed', handleNotificationsChanged);
+      clearInterval(t);
+    };
   }, []);
 
   return <div className="app-header min-h-topbar-height flex items-center sticky top-0 z-30 bg-(--topbar-background) border-b border-default-200">
@@ -217,6 +228,7 @@ const Topbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <DigitalClock />
           <div className="topbar-item hs-dropdown [--auto-close:inside] relative inline-flex">
             <button type="button" className="hs-dropdown-toggle btn btn-icon size-8 hover:bg-default-150 rounded-full relative">
               <LuBellRing className="size-4.5" />

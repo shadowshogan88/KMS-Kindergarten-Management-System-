@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from users.permissions import IsAdmin
 from users.rbac_permissions import HasPortalPermission
 
+from students.models import Student
+
 from .models import AcademicClassRoutine, AcademicClassRoutineOverride, ClassRoutine
 from .serializers import (
     AcademicClassRoutineOverrideSerializer,
@@ -73,6 +75,13 @@ class AcademicClassRoutineViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        user = getattr(self.request, "user", None)
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                return qs.none()
+            section = (getattr(student, "section", "") or "").strip().upper()
+            return qs.filter(school_class_id=student.school_class_id, section=section)
 
         # Support both `school_class` and `class` query params to mimic common UI patterns.
         school_class_id = self.request.query_params.get("school_class") or self.request.query_params.get("class")
@@ -357,6 +366,7 @@ class LiveCalendarView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        user = getattr(request, "user", None)
         school_class_id = request.query_params.get("class") or request.query_params.get("school_class")
         section = (request.query_params.get("section") or "").strip().upper()
         start_raw = request.query_params.get("start")
@@ -364,6 +374,14 @@ class LiveCalendarView(views.APIView):
 
         start = parse_date(start_raw) if isinstance(start_raw, str) else None
         end = parse_date(end_raw) if isinstance(end_raw, str) else None
+
+        if getattr(user, "role", None) == "STUDENT":
+            student = Student.objects.filter(user=user).only("school_class_id", "section").first()
+            if not student or not getattr(student, "school_class_id", None):
+                return Response({"detail": "Student profile not found."}, status=status.HTTP_403_FORBIDDEN)
+            school_class_id = student.school_class_id
+            section = (getattr(student, "section", "") or "").strip().upper()
+
         if not school_class_id or not start or not end:
             return Response({"detail": "class, start, end are required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -394,6 +412,9 @@ class LiveCalendarView(views.APIView):
                         "day_of_week": None,
                         "start_time": None,
                         "end_time": None,
+                        "school_class_id": int(school_class_id) if str(school_class_id).isdigit() else None,
+                        "section": section or "",
+                        "subject_id": None,
                         "subject_label": hol.get("title") or "Holiday",
                         "subject_teacher_label": "",
                         "routine_type": "HOLIDAY",
@@ -425,6 +446,9 @@ class LiveCalendarView(views.APIView):
                         "day_of_week": rt.day_of_week,
                         "start_time": start_time,
                         "end_time": end_time,
+                        "school_class_id": rt.school_class_id,
+                        "section": (rt.section or ""),
+                        "subject_id": rt.subject_id,
                         "subject_label": rt.subject_label,
                         "subject_teacher_label": rt.subject_teacher_label,
                         "routine_type": rt.routine_type,

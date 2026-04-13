@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LuChevronRight } from 'react-icons/lu';
 import { menuItemsData } from './menu';
 import { canPortal } from '@/utils/portalPermissions';
+import { authStorage, fetchMe } from '@/utils/auth';
 
 const isAllowedItem = item => {
-  if (item?.href && String(item.href).startsWith('/portal/')) return canPortal(item.href, 'view');
+  if (item?.href && String(item.href).startsWith('/portal/')) {
+    return canPortal(item.href, item?.permissionAction || 'view');
+  }
   return true;
 };
 
@@ -85,6 +89,31 @@ const MenuItem = ({
     </li>;
 };
 const AppMenu = () => {
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const accessToken = authStorage.getAccess();
+    if (accessToken) {
+      fetchMe(accessToken)
+        .then(user => {
+          if (cancelled || !user) return;
+          authStorage.setUser(user);
+        })
+        .catch(() => {
+          // ignore
+        });
+    }
+
+    const onUserUpdated = () => forceRender(v => v + 1);
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('kms_user_updated', onUserUpdated);
+    };
+  }, []);
+
   return <ul className="side-nav p-3 hs-accordion-group">
       {filterMenu(menuItemsData).map(item => item.isTitle ? <li className="menu-title" key={item.key}>
             <span>{item.label}</span>

@@ -8,11 +8,30 @@ import { apiJson } from '@/utils/api';
 import { authStorage } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
 import Pagination from '@/components/Pagination';
+import { canPortal } from '@/utils/portalPermissions';
 
 const SubjectTable = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialClass = searchParams.get('class') || '';
   const initialSection = searchParams.get('section') || '';
+
+  const [user, setUser] = useState(() => authStorage.getUser());
+  useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  const isStudent = String(user?.role || '').toUpperCase() === 'STUDENT';
+  const studentClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
+  const studentClassLabel = String(user?.student_school_class_label || '').trim();
+  const studentSection = (user?.student_section || '').toString();
+
+  const canView = useMemo(() => canPortal('/portal/subject', 'view'), []);
+  const canCreate = useMemo(() => canPortal('/portal/subject', 'create'), []);
+  const canEdit = useMemo(() => canPortal('/portal/subject', 'edit'), []);
+  const canDelete = useMemo(() => canPortal('/portal/subject', 'delete'), []);
+  const showActions = canEdit || canDelete;
 
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,9 +48,22 @@ const SubjectTable = () => {
   const [isLoadingSchoolClasses, setIsLoadingSchoolClasses] = useState(false);
   const [classError, setClassError] = useState('');
 
+  useEffect(() => {
+    if (!isStudent) return;
+    if (!studentClassId) return;
+    if (schoolClass !== studentClassId) setSchoolClass(studentClassId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudent, studentClassId]);
+
   const load = async nextPage => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) {
+      setItems([]);
+      setCount(0);
+      setPage(1);
+      return;
+    }
     if (!schoolClass) {
       setItems([]);
       setCount(0);
@@ -60,28 +92,37 @@ const SubjectTable = () => {
   useEffect(() => {
     const canUseApi = Boolean(authStorage.getAccess());
     if (!canUseApi) return;
+    if (!canView) return;
 
     let isMounted = true;
     setClassError('');
     setIsLoadingSchoolClasses(true);
-    apiJson('/academic-classes/simple/')
-      .then(data => {
-        if (!isMounted) return;
-        setClasses(Array.isArray(data) ? data : []);
-      })
-      .catch(e => {
-        if (!isMounted) return;
-        setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
-      })
-      .finally(() => {
-        if (!isMounted) return;
-        setIsLoadingSchoolClasses(false);
-      });
+
+    if (isStudent) {
+      const fallbackName = studentClassLabel || 'My Class';
+      const sections = studentSection ? [studentSection.toUpperCase()] : [];
+      setClasses(studentClassId ? [{ id: studentClassId, name: fallbackName, sections }] : []);
+      setIsLoadingSchoolClasses(false);
+    } else {
+      apiJson('/academic-classes/simple/')
+        .then(data => {
+          if (!isMounted) return;
+          setClasses(Array.isArray(data) ? data : []);
+        })
+        .catch(e => {
+          if (!isMounted) return;
+          setClassError(e instanceof Error ? e.message : 'Failed to load classes.');
+        })
+        .finally(() => {
+          if (!isMounted) return;
+          setIsLoadingSchoolClasses(false);
+        });
+    }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [canView, isStudent, studentClassId, studentClassLabel, studentSection]);
 
   const selectedClass = useMemo(
     () => classes.find(c => String(c?.id) === String(schoolClass)) || null,
@@ -99,10 +140,17 @@ const SubjectTable = () => {
       if (section) setSection('');
       return;
     }
+    if (isStudent && studentSection) {
+      const wanted = studentSection.toUpperCase();
+      if (sectionOptions.includes(wanted)) {
+        if (section !== wanted) setSection(wanted);
+        return;
+      }
+    }
     if (section && sectionOptions.includes(section.toUpperCase())) return;
     setSection(sectionOptions[0] || '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClass?.id, sectionOptions.join(',')]);
+  }, [selectedClass?.id, sectionOptions.join(','), isStudent, studentSection]);
 
   useEffect(() => {
     if (!schoolClass && section) setSection('');
@@ -174,20 +222,25 @@ const SubjectTable = () => {
     <div className="card">
       <div className="card-header flex justify-between items-center">
         <h6 className="card-title">Subjects</h6>
-        <button
-          className="btn btn-sm bg-primary text-white flex items-center gap-1"
-          onClick={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            openAddModal();
-          }}
-          type="button"
-        >
-          <LuPlus className="size-4" /> Add Subject
-        </button>
+        {canCreate ? (
+          <button
+            className="btn btn-sm bg-primary text-white flex items-center gap-1"
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              openAddModal();
+            }}
+            type="button"
+          >
+            <LuPlus className="size-4" /> Add Subject
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-col">
+        {!canView ? (
+          <div className="px-5 py-4 text-sm text-danger">You do not have permission to view subjects.</div>
+        ) : null}
         <div className="px-5 pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -199,7 +252,7 @@ const SubjectTable = () => {
                 className="form-input"
                 value={schoolClass}
                 onChange={e => setSchoolClass(e.target.value)}
-                disabled={isLoadingSchoolClasses}
+                disabled={isLoadingSchoolClasses || isStudent}
               >
                 <option value="">{isLoadingSchoolClasses ? 'Loading classes...' : 'All classes'}</option>
                 {classes.map(c => (
@@ -208,7 +261,7 @@ const SubjectTable = () => {
                   </option>
                 ))}
               </select>
-              {classError ? <div className="mt-2 text-xs text-danger">{classError}</div> : null}
+              {!isStudent && classError ? <div className="mt-2 text-xs text-danger">{classError}</div> : null}
             </div>
 
             <div>
@@ -220,7 +273,7 @@ const SubjectTable = () => {
                 className="form-input"
                 value={section}
                 onChange={e => setSection(e.target.value)}
-                disabled={!schoolClass || sectionOptions.length === 0}
+                disabled={!schoolClass || sectionOptions.length === 0 || (isStudent && Boolean(studentSection))}
               >
                 <option value="">{!schoolClass ? 'Select class first' : sectionOptions.length ? 'Select section' : 'No sections'}</option>
                 {sectionOptions.map(s => (
@@ -283,14 +336,14 @@ const SubjectTable = () => {
                         <th className="px-3.5 py-3 text-start">Class</th>
                         <th className="px-3.5 py-3 text-start">Teacher</th>
                         <th className="px-3.5 py-3 text-start">Type</th>
-                        <th className="px-3.5 py-3 text-start">Action</th>
+                        {showActions ? <th className="px-3.5 py-3 text-start">Action</th> : null}
                       </tr>
                     </thead>
 
                     <tbody className="divide-y divide-default-200">
                       {isLoading ? (
                         <tr className="text-default-800 font-normal whitespace-nowrap">
-                          <td className="px-3.5 py-4 text-sm" colSpan={7}>
+                          <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 7 : 6}>
                             Loading...
                           </td>
                         </tr>
@@ -298,7 +351,7 @@ const SubjectTable = () => {
 
                       {!isLoading && items.length === 0 ? (
                         <tr className="text-default-800 font-normal whitespace-nowrap">
-                          <td className="px-3.5 py-4 text-sm" colSpan={7}>
+                          <td className="px-3.5 py-4 text-sm" colSpan={showActions ? 7 : 6}>
                             No subjects found.
                           </td>
                         </tr>
@@ -312,39 +365,45 @@ const SubjectTable = () => {
                           <td className="px-3.5 py-3 text-sm">{row.classroom_label || '-'}</td>
                           <td className="px-3.5 py-3 text-sm">{row.subject_teacher_label || '-'}</td>
                           <td className="px-3.5 py-3 text-sm">{prettyType(row.subject_type)}</td>
-                          <td className="px-3.5 py-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  openEditModal(row);
-                                }}
-                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                aria-haspopup="dialog"
-                                aria-expanded="false"
-                                aria-controls="subject-edit-modal"
-                              >
-                                <LuPencil className="size-4" />
-                              </button>
+                          {showActions ? (
+                            <td className="px-3.5 py-3">
+                              <div className="flex items-center gap-2">
+                                {canEdit ? (
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      openEditModal(row);
+                                    }}
+                                    className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                    aria-haspopup="dialog"
+                                    aria-expanded="false"
+                                    aria-controls="subject-edit-modal"
+                                  >
+                                    <LuPencil className="size-4" />
+                                  </button>
+                                ) : null}
 
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  openDeleteModal(row);
-                                }}
-                                className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
-                                aria-haspopup="dialog"
-                                aria-expanded="false"
-                                aria-controls="subject-delete-modal"
-                              >
-                                <LuTrash2 className="size-4" />
-                              </button>
-                            </div>
-                          </td>
+                                {canDelete ? (
+                                  <button
+                                    type="button"
+                                    onClick={e => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      openDeleteModal(row);
+                                    }}
+                                    className="btn size-8 bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                                    aria-haspopup="dialog"
+                                    aria-expanded="false"
+                                    aria-controls="subject-delete-modal"
+                                  >
+                                    <LuTrash2 className="size-4" />
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
+                          ) : null}
                         </tr>
                       ))}
                     </tbody>
@@ -363,18 +422,31 @@ const SubjectTable = () => {
         )}
       </div>
 
-      <DeleteModal subject={selected} onConfirm={async () => {
-        await onDelete();
-        if (items.length === 1 && page > 1) await load(page - 1);
-        else await load(page);
-      }} />
-      <AddSubject subject={editing} onCreated={async p => {
-        await onCreate(p);
-        await load(1);
-      }} onUpdated={async (d, p) => {
-        await onUpdate(d, p);
-        await load(page);
-      }} onRefresh={() => load(page)} defaultClassroomKey={defaultClassroomKey} />
+      {canDelete ? (
+        <DeleteModal
+          subject={selected}
+          onConfirm={async () => {
+            await onDelete();
+            if (items.length === 1 && page > 1) await load(page - 1);
+            else await load(page);
+          }}
+        />
+      ) : null}
+      {canCreate || canEdit ? (
+        <AddSubject
+          subject={editing}
+          onCreated={async p => {
+            await onCreate(p);
+            await load(1);
+          }}
+          onUpdated={async (d, p) => {
+            await onUpdate(d, p);
+            await load(page);
+          }}
+          onRefresh={() => load(page)}
+          defaultClassroomKey={defaultClassroomKey}
+        />
+      ) : null}
     </div>
   );
 };

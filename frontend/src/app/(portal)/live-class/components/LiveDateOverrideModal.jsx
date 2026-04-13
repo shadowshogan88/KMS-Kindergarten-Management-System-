@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { LuLink2, LuRotateCcw, LuX } from 'react-icons/lu';
+import { LuRotateCcw, LuX } from 'react-icons/lu';
+import { SiGooglemeet } from 'react-icons/si';
 
 import { apiJson } from '@/utils/api';
 import { closeOverlay } from '@/utils/overlay';
@@ -153,8 +154,15 @@ const LiveDateOverrideModal = ({ event, status, onSaved }) => {
             <div className="mt-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 {event?.meet_link ? (
-                  <a className="text-primary underline text-sm" href={event.meet_link} target="_blank" rel="noreferrer">
-                    <LuLink2 className="inline size-4" /> Open Meet
+                  <a
+                    className="btn btn-xs bg-default-200 hover:bg-primary/10 hover:text-primary text-default-600"
+                    href={event.meet_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open Google Meet"
+                    aria-label="Open Google Meet"
+                  >
+                    <SiGooglemeet className="size-4" />
                   </a>
                 ) : (
                   <span className="text-default-500 text-sm">No Meet link for this date.</span>

@@ -8,9 +8,14 @@ import { authStorage } from '@/utils/auth';
 
 const AssignmentList = () => {
   const canUseApi = Boolean(authStorage.getAccess());
+  const user = authStorage.getUser();
+  const role = user?.role || '';
+  const canPublish = role === 'ADMIN' || role === 'TEACHER';
+  const canDelete = role === 'ADMIN' || role === 'TEACHER';
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
     if (!canUseApi) return;
@@ -30,6 +35,34 @@ const AssignmentList = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const deleteAssignment = async assignmentId => {
+    const ok = window.confirm('Delete this assignment?');
+    if (!ok) return;
+    setBusyId(assignmentId);
+    setError('');
+    try {
+      await apiJson(`/homeworks/${assignmentId}/`, { method: 'DELETE' });
+      setItems(prev => prev.filter(item => item.id !== assignmentId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete assignment.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const publishAssignment = async assignmentId => {
+    setBusyId(assignmentId);
+    setError('');
+    try {
+      await apiJson(`/homeworks/${assignmentId}/publish/`, { method: 'POST' });
+      setItems(prev => prev.map(item => (item.id === assignmentId ? { ...item, status: 'PUBLISHED' } : item)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to publish assignment.');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (!canUseApi) return <Navigate to="/portal" replace state={{ error: 'Please sign in to continue.' }} />;
 
@@ -64,6 +97,7 @@ const AssignmentList = () => {
                       <th className="px-3.5 py-3 text-start">Class</th>
                       <th className="px-3.5 py-3 text-start">Due</th>
                       <th className="px-3.5 py-3 text-start">Status</th>
+                      <th className="px-3.5 py-3 text-start">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-default-200">
@@ -74,6 +108,39 @@ const AssignmentList = () => {
                         <td className="px-3.5 py-3 text-sm">{hw.classroom_label || hw.class_label}</td>
                         <td className="px-3.5 py-3 text-sm">{String(hw.due_date || '').slice(0, 19).replace('T', ' ')}</td>
                         <td className="px-3.5 py-3 text-sm">{hw.status}</td>
+                        <td className="px-3.5 py-3 text-sm">
+                          <div className="flex items-center gap-3">
+                            <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                              View
+                            </Link>
+                            <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
+                              Edit
+                            </Link>
+                            <Link className="text-primary underline" to={`/portal/assignment/submissions?homework=${encodeURIComponent(hw.id)}`}>
+                              Review
+                            </Link>
+                            {canPublish && hw.status !== 'PUBLISHED' ? (
+                              <button
+                                type="button"
+                                className="text-success underline disabled:text-default-400"
+                                disabled={busyId === hw.id}
+                                onClick={() => publishAssignment(hw.id)}
+                              >
+                                {busyId === hw.id ? 'Publishing...' : 'Activate'}
+                              </button>
+                            ) : null}
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                className="text-danger underline disabled:text-default-400"
+                                disabled={busyId === hw.id}
+                                onClick={() => deleteAssignment(hw.id)}
+                              >
+                                {busyId === hw.id ? 'Working...' : 'Delete'}
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -88,4 +155,3 @@ const AssignmentList = () => {
 };
 
 export default AssignmentList;
-

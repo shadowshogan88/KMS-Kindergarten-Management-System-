@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +9,24 @@ from rest_framework.response import Response
 from attendance.models import AttendanceRecord
 from classes.models import Classroom, LiveClass
 from reports.models import DailyActivityReport, ProgressNote
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def server_time(request):
+    now_utc = timezone.now()
+    now_local = timezone.localtime(now_utc)
+    offset = now_local.utcoffset()
+    offset_minutes = int(offset.total_seconds() // 60) if offset else 0
+
+    return Response(
+        {
+            "time_zone": settings.TIME_ZONE,
+            "now": now_local.isoformat(),
+            "epoch_ms": int(now_utc.timestamp() * 1000),
+            "offset_minutes": offset_minutes,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -61,4 +80,3 @@ def dashboard(request):
         upcoming_live.values("id", "title", "starts_at", "ends_at", "meet_link", "classroom__name")[:6]
     )
     return Response(data)
-
