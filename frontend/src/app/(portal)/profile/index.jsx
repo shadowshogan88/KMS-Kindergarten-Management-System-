@@ -1,23 +1,34 @@
-import { useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Navigate } from 'react-router';
 
+import avatar1 from '@/assets/images/user/avatar-1.png';
 import PageMeta from '@/components/PageMeta';
+import { apiForm, apiJson } from '@/utils/api';
 import { authStorage, fetchMe } from '@/utils/auth';
 
 const PortalProfile = () => {
-  const navigate = useNavigate();
   const accessToken = authStorage.getAccess();
-  const user = useMemo(() => authStorage.getUser(), []);
+  const [user, setUser] = useState(() => authStorage.getUser());
   const [error, setError] = useState('');
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [avatar, setAvatar] = useState(() => authStorage.getAvatar() || '/src/assets/images/user/avatar-1.png');
   const avatarInputRef = useRef(null);
+
+  useEffect(() => {
+    const syncUser = () => setUser(authStorage.getUser());
+    window.addEventListener('storage', syncUser);
+    window.addEventListener('kms_user_updated', syncUser);
+    return () => {
+      window.removeEventListener('storage', syncUser);
+      window.removeEventListener('kms_user_updated', syncUser);
+    };
+  }, []);
 
   if (!accessToken) {
     return <Navigate to="/portal" replace state={{ error: 'Please sign in to continue.' }} />;
   }
 
-  const onAvatarChange = e => {
+  const onAvatarChange = async e => {
     setError('');
     const file = e?.target?.files?.[0];
     if (!file) return;
@@ -32,29 +43,35 @@ const PortalProfile = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
-      if (!dataUrl) return;
-      const saved = authStorage.setAvatar(dataUrl);
-      if (!saved) {
-        setError('Could not save photo (storage limit). Please use a smaller image.');
-      } else {
-        setAvatar(dataUrl);
-      }
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+
+    setIsSavingPhoto(true);
+    try {
+      const updatedUser = await apiForm('/auth/profile-picture/', { method: 'POST', formData });
+      authStorage.setUser(updatedUser);
+      setUser(updatedUser);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload photo.');
+    } finally {
+      setIsSavingPhoto(false);
       if (e?.target) e.target.value = '';
-    };
-    reader.onerror = () => {
-      setError('Failed to read image.');
-      if (e?.target) e.target.value = '';
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const removeAvatar = () => {
-    authStorage.clearAvatar();
-    setAvatar('/src/assets/images/user/avatar-1.png');
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  const removeAvatar = async () => {
+    setError('');
+    setIsSavingPhoto(true);
+    try {
+      const updatedUser = await apiJson('/auth/profile-picture/', { method: 'DELETE' });
+      authStorage.setUser(updatedUser);
+      setUser(updatedUser);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove photo.');
+    } finally {
+      setIsSavingPhoto(false);
+    }
   };
 
   const refresh = async () => {
@@ -63,13 +80,15 @@ const PortalProfile = () => {
     try {
       const refreshed = await fetchMe(accessToken);
       authStorage.setUser(refreshed);
-      navigate(0);
+      setUser(refreshed);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to refresh profile.');
     } finally {
       setIsRefreshing(false);
     }
   };
+
+  const avatar = user?.profile_picture_url || avatar1;
 
   return (
     <>
@@ -105,15 +124,15 @@ const PortalProfile = () => {
           <div className="mt-6 rounded-md border border-default-200 p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <img alt="user" className="size-14 rounded" src={avatar} />
+                <img alt="user" className="size-14 rounded object-cover" src={avatar} />
                 <div>
                   <div className="text-sm font-semibold text-default-900">Profile Photo</div>
-                  <div className="text-xs text-default-500">Upload a new picture (max 2MB).</div>
+                  <div className="text-xs text-default-500">Upload a new picture (max 2MB). It will stay after logout/login.</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <label className="btn bg-primary text-white cursor-pointer" htmlFor="portal-avatar-upload">
-                  Upload
+                <label className={`btn bg-primary text-white cursor-pointer ${isSavingPhoto ? 'pointer-events-none opacity-70' : ''}`} htmlFor="portal-avatar-upload">
+                  {isSavingPhoto ? 'Saving...' : 'Upload'}
                 </label>
                 <input
                   id="portal-avatar-upload"
@@ -122,8 +141,9 @@ const PortalProfile = () => {
                   className="hidden"
                   ref={avatarInputRef}
                   onChange={onAvatarChange}
+                  disabled={isSavingPhoto}
                 />
-                <button type="button" className="btn border border-default-200 hover:bg-default-150" onClick={removeAvatar}>
+                <button type="button" className="btn border border-default-200 hover:bg-default-150" onClick={removeAvatar} disabled={isSavingPhoto}>
                   Remove
                 </button>
               </div>

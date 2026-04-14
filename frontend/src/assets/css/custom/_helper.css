@@ -30,3 +30,69 @@ _helper.css
 #emailOverview-backdrop {
   @apply bg-transparent backdrop-blur-none;
 }
+
+@layer components {
+  .portal-filter-panel {
+    @apply overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-r from-sky-50/95 via-white to-emerald-50/95 p-4 shadow-sm ring-1 ring-white/70 backdrop-blur md:p-5;
+  }
+
+  .portal-filter-stat {
+    @apply rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-sky-100 backdrop-blur;
+  }
+
+  .portal-filter-input {
+    @apply rounded-2xl border-sky-100 bg-white/80 shadow-sm backdrop-blur;
+  }
+
+  .portal-filter-btn-primary {
+    @apply rounded-full border-0 bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-md transition hover:from-sky-700 hover:to-cyan-600;
+  }
+
+  .portal-filter-btn-secondary {
+    @apply rounded-full border-0 bg-white/90 text-default-700 shadow-sm ring-1 ring-sky-100 transition hover:bg-white;
+  }
+
+  .portal-table-shell {
+    @apply overflow-x-auto rounded-[28px] border border-sky-100 bg-white shadow-sm;
+  }
+
+  .portal-table-shell-tight {
+    @apply rounded-[20px] border border-sky-100 bg-white shadow-sm;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 {
+    @apply border-separate border-spacing-0 bg-white;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 thead {
+    @apply bg-default-50;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 thead tr th {
+    @apply border-b border-default-200 text-sm font-semibold text-default-800;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 thead tr th:first-child {
+    @apply rounded-tl-xl;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 thead tr th:last-child {
+    @apply rounded-tr-xl;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 tbody tr {
+    @apply text-default-800 font-normal whitespace-nowrap transition-colors duration-150;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 tbody tr:nth-child(even) {
+    @apply bg-default-50/50;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 tbody tr:hover {
+    @apply bg-primary/5;
+  }
+
+  table.min-w-full.divide-y.divide-default-200 tbody tr td {
+    @apply border-default-200;
+  }
+}

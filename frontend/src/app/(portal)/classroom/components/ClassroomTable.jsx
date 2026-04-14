@@ -125,11 +125,12 @@ const ClassroomTable = () => {
 
         {error ? <div className="px-5 py-4 text-sm text-danger">{error}</div> : null}
 
-        <div className="overflow-x-auto">
+        <div className="mx-5 my-4 portal-table-shell-tight">
+          <div className="overflow-x-auto">
           <div className="min-w-full inline-block align-middle">
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-default-200">
-                <thead className="font-semibold whitespace-nowrap">
+                <thead className="font-semibold whitespace-nowrap bg-default-50">
                   <tr className="text-sm text-default-800 divide-x divide-default-200">
                     <th className="px-3.5 py-3 text-start">#</th>
                     <th className="px-3.5 py-3 text-start">Room No</th>
@@ -198,6 +199,7 @@ const ClassroomTable = () => {
                 </tbody>
               </table>
             </div>
+          </div>
           </div>
         </div>
 

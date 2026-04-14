@@ -1,7 +1,10 @@
 from datetime import date, time, timedelta
+import os
+import shutil
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -75,6 +78,35 @@ class ApiSmokeTests(APITestCase):
         res = self.client.post("/api/v1/auth/token/", {"username": "parent", "password": "parent1234"}, format="json")
         self.assertEqual(res.status_code, 200)
         self.assertIn("access", res.data)
+
+    def test_profile_picture_upload_persists_in_me_response(self):
+        self.client.force_authenticate(self.parent)
+        gif_bytes = (
+            b"GIF87a\x01\x00\x01\x00\x80\x01\x00\x00\x00\x00"
+            b"\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00"
+            b"\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        )
+
+        tmpdir = os.path.join(os.getcwd(), "test_media_profile_picture")
+        os.makedirs(tmpdir, exist_ok=True)
+        try:
+            with override_settings(MEDIA_ROOT=tmpdir):
+                upload = self.client.post(
+                    "/api/v1/auth/profile-picture/",
+                    {"profile_picture": SimpleUploadedFile("avatar.gif", gif_bytes, content_type="image/gif")},
+                )
+                self.assertEqual(upload.status_code, 200)
+                self.assertIn("/media/users/profile_pictures/", upload.data.get("profile_picture_url", ""))
+
+                me = self.client.get("/api/v1/auth/me/")
+                self.assertEqual(me.status_code, 200)
+                self.assertEqual(me.data.get("profile_picture_url"), upload.data.get("profile_picture_url"))
+
+                removed = self.client.delete("/api/v1/auth/profile-picture/")
+                self.assertEqual(removed.status_code, 200)
+                self.assertEqual(removed.data.get("profile_picture_url"), "")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     def test_parent_dashboard_and_data_visibility(self):
         self.client.force_authenticate(self.parent)

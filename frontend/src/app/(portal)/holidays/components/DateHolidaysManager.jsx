@@ -122,13 +122,13 @@ const DateHolidaysManager = () => {
         ) : null}
 
         {showForm ? (
-          <>
+          <div className="portal-filter-panel">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div>
                 <label className="inline-block mb-2 text-base font-medium">Date</label>
                 <input
                   type="date"
-                  className="form-input"
+                  className="form-input portal-filter-input"
                   value={form.date}
                   onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                 />
@@ -136,14 +136,14 @@ const DateHolidaysManager = () => {
               <div className="lg:col-span-2">
                 <label className="inline-block mb-2 text-base font-medium">Title</label>
                 <input
-                  className="form-input"
+                  className="form-input portal-filter-input"
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder="e.g. Eid-ul-Fitr"
                 />
               </div>
               <div className="flex items-end gap-3">
-                <button type="button" className="btn bg-primary text-white w-full flex items-center justify-center gap-2" onClick={createHoliday}>
+                <button type="button" className="btn portal-filter-btn-primary w-full flex items-center justify-center gap-2" onClick={createHoliday}>
                   <LuPlus className="size-4" /> Add
                 </button>
               </div>
@@ -152,7 +152,7 @@ const DateHolidaysManager = () => {
             <div className="mt-4">
               <label className="inline-block mb-2 text-base font-medium">Description (optional)</label>
               <textarea
-                className="form-input"
+                className="form-input portal-filter-input"
                 rows={2}
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -168,12 +168,13 @@ const DateHolidaysManager = () => {
                 <span className="text-sm text-default-700">Active</span>
               </label>
             </div>
-          </>
+          </div>
         ) : null}
 
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-5 portal-table-shell">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-default-200">
-            <thead className="bg-default-100 font-normal whitespace-nowrap">
+            <thead className="font-semibold whitespace-nowrap bg-default-50">
               <tr className="text-sm text-default-800">
                 <th className="px-3.5 py-3 font-medium text-start">Date</th>
                 <th className="px-3.5 py-3 font-medium text-start">Title</th>
@@ -222,6 +223,7 @@ const DateHolidaysManager = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

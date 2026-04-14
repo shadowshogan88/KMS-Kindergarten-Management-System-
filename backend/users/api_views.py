@@ -1,9 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.db.models import Q
+from django.db import transaction
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import PortalRole, PortalRolePermission
@@ -27,7 +29,7 @@ def _is_system_portal_role(role: PortalRole | None) -> bool:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me(request):
-    return Response(MeSerializer(request.user).data)
+    return Response(MeSerializer(request.user, context={"request": request}).data)
 
 
 @api_view(["POST"])
@@ -56,6 +58,33 @@ def change_password(request):
     user.must_change_password = False
     user.save(update_fields=["password", "must_change_password"])
     return Response({"detail": "Password updated successfully."})
+
+
+@api_view(["POST", "DELETE"])
+@parser_classes([MultiPartParser, FormParser])
+@permission_classes([IsAuthenticated])
+def profile_picture(request):
+    user = request.user
+
+    if request.method == "DELETE":
+        if user.profile_picture:
+            user.profile_picture.delete(save=False)
+            user.save(update_fields=["profile_picture"])
+        return Response(MeSerializer(user, context={"request": request}).data)
+
+    uploaded = request.FILES.get("profile_picture")
+    if not uploaded:
+        return Response({"detail": "profile_picture file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        old_storage = user.profile_picture.storage if user.profile_picture else None
+        old_name = user.profile_picture.name if user.profile_picture else ""
+        user.profile_picture = uploaded
+        user.save(update_fields=["profile_picture"])
+        if old_storage and old_name and old_name != user.profile_picture.name and old_storage.exists(old_name):
+            old_storage.delete(old_name)
+
+    return Response(MeSerializer(user, context={"request": request}).data)
 
 
 @api_view(["GET"])

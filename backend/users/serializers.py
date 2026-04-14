@@ -18,6 +18,7 @@ class MeSerializer(serializers.ModelSerializer):
     student_school_class_id = serializers.SerializerMethodField()
     student_school_class_label = serializers.SerializerMethodField()
     student_section = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -29,6 +30,7 @@ class MeSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "phone",
+            "profile_picture_url",
             "must_change_password",
             "portal_role_id",
             "portal_role_name",
@@ -38,6 +40,18 @@ class MeSerializer(serializers.ModelSerializer):
             "student_school_class_label",
             "student_section",
         )
+
+    def get_profile_picture_url(self, obj):
+        picture = getattr(obj, "profile_picture", None)
+        if not picture:
+            return ""
+        try:
+            url = picture.url
+        except Exception:
+            return ""
+
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
 
     def get_portal_permissions(self, obj):
         perms = get_portal_permissions_for_user(obj)

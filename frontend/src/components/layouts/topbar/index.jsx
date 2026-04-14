@@ -110,8 +110,7 @@ const profileMenu = [{
   to: '/portal/logout'
 }];
 const Topbar = () => {
-  const user = authStorage.getUser();
-  const [avatarOverride, setAvatarOverride] = useState(() => authStorage.getAvatar());
+  const [user, setUser] = useState(() => authStorage.getUser());
   const fullName = useMemo(() => {
     const first = (user?.first_name || '').trim();
     const last = (user?.last_name || '').trim();
@@ -119,15 +118,15 @@ const Topbar = () => {
     return combined || user?.username || 'User';
   }, [user?.first_name, user?.last_name, user?.username]);
   const userType = useMemo(() => (user?.role || user?.portal_role_name || 'User'), [user?.portal_role_name, user?.role]);
-  const userAvatar = useMemo(() => avatarOverride || '/src/assets/images/user/avatar-1.png', [avatarOverride]);
+  const userAvatar = useMemo(() => user?.profile_picture_url || avatar1, [user?.profile_picture_url]);
 
   useEffect(() => {
-    const refreshAvatar = () => setAvatarOverride(authStorage.getAvatar());
-    window.addEventListener('storage', refreshAvatar);
-    window.addEventListener('kms_avatar_updated', refreshAvatar);
+    const refreshUser = () => setUser(authStorage.getUser());
+    window.addEventListener('storage', refreshUser);
+    window.addEventListener('kms_user_updated', refreshUser);
     return () => {
-      window.removeEventListener('storage', refreshAvatar);
-      window.removeEventListener('kms_avatar_updated', refreshAvatar);
+      window.removeEventListener('storage', refreshUser);
+      window.removeEventListener('kms_user_updated', refreshUser);
     };
   }, []);
 
@@ -299,14 +298,14 @@ const Topbar = () => {
 
           <div className="topbar-item hs-dropdown relative inline-flex">
             <button className="cursor-pointer bg-pink-100 rounded-full">
-              <img src={userAvatar} alt="user" className="hs-dropdown-toggle rounded-full size-9.5" />
+              <img src={userAvatar} alt="user" className="hs-dropdown-toggle rounded-full size-9.5 object-cover" />
             </button>
             <div className="hs-dropdown-menu min-w-48">
               <div className="p-2">
                 <h6 className="mb-2 text-default-500">Welcome to TinyTrack</h6>
                 <a className="flex gap-3" href="/portal/profile" data-discover="true">
                   <div className="relative inline-block">
-                    <img alt="user" className="size-12 rounded" src={userAvatar} />
+                    <img alt="user" className="size-12 rounded object-cover" src={userAvatar} />
                     <span className="-top-1 -end-1 absolute w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></span>
                   </div>
                   <div>

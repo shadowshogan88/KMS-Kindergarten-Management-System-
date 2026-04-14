@@ -219,6 +219,17 @@ const SyllabusManager = () => {
         <div className="p-5">
           {error ? <div className="mb-4 text-sm text-danger">{error}</div> : null}
 
+          <div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-default-900">Smart Filters</div>
+              <div className="text-sm text-default-600">Filter syllabus by search, class, section and subject.</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.18em] text-default-500">Live Count</div>
+              <div className="mt-1 text-xl font-semibold text-default-900">{items.length}</div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
             <div className="lg:col-span-2">
               <label className="sr-only">Search</label>
@@ -263,15 +274,17 @@ const SyllabusManager = () => {
               </select>
             </div>
             <div className="lg:col-span-2 flex justify-end">
-              <button type="button" className="btn bg-default-200 hover:bg-default-300 text-default-700" onClick={load} disabled={isLoading}>
+              <button type="button" className="btn bg-default-900 text-white px-5" onClick={load} disabled={isLoading}>
                 <LuSearch className="inline size-4" /> Search
               </button>
             </div>
           </div>
+          </div>
 
-          <div className="mt-5 overflow-x-auto">
+          <div className="mt-5 portal-table-shell">
+            <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-default-200">
-              <thead className="bg-default-100 font-normal whitespace-nowrap">
+              <thead className="font-semibold whitespace-nowrap bg-default-50">
                 <tr className="text-sm text-default-800">
                   <th className="px-3.5 py-3 font-medium text-start">Title</th>
                   <th className="px-3.5 py-3 font-medium text-start">Class</th>
@@ -340,6 +353,7 @@ const SyllabusManager = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>

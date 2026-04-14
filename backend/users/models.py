@@ -1,5 +1,13 @@
+import os
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+
+def user_profile_picture_upload_to(instance, filename: str) -> str:
+    ext = os.path.splitext(filename or "")[1].lower() or ".jpg"
+    return f"users/profile_pictures/{instance.pk or 'new'}/{uuid.uuid4().hex}{ext}"
 
 
 class User(AbstractUser):
@@ -19,6 +27,7 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_PARENT)
     phone = models.CharField(max_length=30, blank=True, default="")
+    profile_picture = models.ImageField(upload_to=user_profile_picture_upload_to, blank=True, null=True)
     must_change_password = models.BooleanField(
         default=False,
         help_text="If true, user should be prompted to change password after login (no current password required).",
