@@ -23,6 +23,11 @@ def submission_image_upload_to(instance: "SubmissionImage", filename: str) -> st
     ext = (ext or ".jpg").lower()
     return f"homework_submissions/{instance.submission.homework_id}/{instance.submission.student_id}/{timezone.now().strftime('%Y/%m')}/{base[:80]}{ext}"
 
+def submission_pdf_upload_to(instance: "HomeworkSubmission", filename: str) -> str:
+    base, ext = os.path.splitext(filename or "")
+    ext = (ext or ".pdf").lower()
+    return f"homework_submissions/{instance.homework_id}/{instance.student_id}/{timezone.now().strftime('%Y/%m')}/{base[:80]}{ext}"
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -160,6 +165,7 @@ class HomeworkSubmission(TimeStampedModel):
     # Rich text submission (CKEditor/Decoupled editor content).
     # Images are stored separately in SubmissionImage.
     content_html = models.TextField(blank=True, default="")
+    submission_pdf = models.FileField(upload_to=submission_pdf_upload_to, blank=True, null=True)
 
     teacher_marks = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     teacher_total_marks = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)

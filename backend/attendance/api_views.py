@@ -1,6 +1,6 @@
 import datetime
 
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.utils.dateparse import parse_date
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -146,7 +146,7 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         else:
             section = ""
 
-        students_qs = students_qs.order_by("first_name", "last_name")
+        students_qs = students_qs.order_by(F("roll_no").asc(nulls_last=True), "first_name", "last_name", "id")
 
         existing = AcademicAttendanceRecord.objects.filter(school_class=school_class, section=section, date=dt, student__in=students_qs)
         existing_map = {r.student_id: r for r in existing}
@@ -162,6 +162,7 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
             out_students.append(
                 {
                     "id": s.id,
+                    "roll_no": getattr(s, "roll_no", None),
                     "name": f"{s.first_name} {s.last_name}".strip(),
                     "status": rec.status if rec else "",
                     "note": rec.note if rec else "",
@@ -344,11 +345,12 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
         agg_map = {r["student_id"]: r for r in agg}
 
         out = []
-        for s in students_qs.order_by("first_name", "last_name"):
+        for s in students_qs.order_by(F("roll_no").asc(nulls_last=True), "first_name", "last_name", "id"):
             a = agg_map.get(s.id, {})
             out.append(
                 {
                     "id": s.id,
+                    "roll_no": getattr(s, "roll_no", None),
                     "name": f"{s.first_name} {s.last_name}".strip(),
                     "present": a.get("present", 0),
                     "absent": a.get("absent", 0),
@@ -401,7 +403,7 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
             students_qs = students_qs.filter(parent=user)
         if getattr(user, "role", None) == "STUDENT":
             students_qs = students_qs.filter(user=user)
-        students_qs = students_qs.order_by("first_name", "last_name")
+        students_qs = students_qs.order_by(F("roll_no").asc(nulls_last=True), "first_name", "last_name", "id")
 
         records_qs = AcademicAttendanceRecord.objects.filter(
             school_class_id=school_class_id,
@@ -426,6 +428,7 @@ class AcademicAttendanceViewSet(viewsets.ModelViewSet):
             out.append(
                 {
                     "id": s.id,
+                    "roll_no": getattr(s, "roll_no", None),
                     "name": f"{s.first_name} {s.last_name}".strip(),
                     "days": by_student_day.get(s.id, {}),
                 }

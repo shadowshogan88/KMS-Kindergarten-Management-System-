@@ -21,10 +21,28 @@ const formatDateTime = value => {
   return parsed.toLocaleString();
 };
 
+const getStatusBadgeClass = status => {
+  switch (String(status || '').toUpperCase()) {
+    case 'SUBMITTED':
+      return 'bg-sky-100 text-sky-700 ring-sky-200';
+    case 'GRADED':
+      return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
+    case 'PUBLISHED':
+      return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
+    case 'DRAFT':
+      return 'bg-amber-100 text-amber-700 ring-amber-200';
+    case 'ARCHIVED':
+      return 'bg-slate-200 text-slate-700 ring-slate-300';
+    default:
+      return 'bg-sky-100 text-sky-700 ring-sky-200';
+  }
+};
+
 const AssignmentList = () => {
   const canUseApi = Boolean(authStorage.getAccess());
   const user = authStorage.getUser();
   const role = user?.role || '';
+  const canCreate = role === 'ADMIN' || role === 'TEACHER';
   const canPublish = role === 'ADMIN' || role === 'TEACHER';
   const canDelete = role === 'ADMIN' || role === 'TEACHER';
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,10 +52,14 @@ const AssignmentList = () => {
   const [busyId, setBusyId] = useState(null);
   const [classOptions, setClassOptions] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
+  const [submissionStatusByHomework, setSubmissionStatusByHomework] = useState({});
+  const scopedClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
+  const scopedSection = (user?.student_section || '').toString().trim().toUpperCase();
+  const hasLockedClassSection = Boolean(scopedClassId);
   const [filters, setFilters] = useState(() => ({
     q: searchParams.get('q') || '',
-    classId: searchParams.get('class') || '',
-    section: searchParams.get('section') || '',
+    classId: scopedClassId || searchParams.get('class') || '',
+    section: scopedSection || searchParams.get('section') || '',
     subjectId: searchParams.get('subject') || '',
     date: searchParams.get('date') || '',
   }));
@@ -54,12 +76,28 @@ const AssignmentList = () => {
   useEffect(() => {
     setFilters({
       q: searchParams.get('q') || '',
-      classId: searchParams.get('class') || '',
-      section: searchParams.get('section') || '',
+      classId: scopedClassId || searchParams.get('class') || '',
+      section: scopedSection || searchParams.get('section') || '',
       subjectId: searchParams.get('subject') || '',
       date: searchParams.get('date') || '',
     });
-  }, [searchParams]);
+  }, [scopedClassId, scopedSection, searchParams]);
+
+  useEffect(() => {
+    if (!hasLockedClassSection) return;
+    const next = new URLSearchParams(searchParams);
+    let changed = false;
+    if ((next.get('class') || '') !== scopedClassId) {
+      next.set('class', scopedClassId);
+      changed = true;
+    }
+    if ((next.get('section') || '').toUpperCase() !== scopedSection) {
+      if (scopedSection) next.set('section', scopedSection);
+      else next.delete('section');
+      changed = true;
+    }
+    if (changed) setSearchParams(next, { replace: true });
+  }, [hasLockedClassSection, scopedClassId, scopedSection, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!canUseApi) return;
@@ -122,9 +160,29 @@ const AssignmentList = () => {
       if (subjectId) qs.set('subject', subjectId);
       if (date) qs.set('date', date);
 
-      const data = await apiJson(`/homeworks/?${qs.toString()}`);
+      const [data, submissionData] = await Promise.all([
+        apiJson(`/homeworks/?${qs.toString()}`),
+        role === 'STUDENT' ? apiJson('/submissions/?type=ASSIGNMENT').catch(() => []) : Promise.resolve([]),
+      ]);
       const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-      setItems(rows);
+      if (role === 'STUDENT') {
+        const subRows = Array.isArray(submissionData?.results) ? submissionData.results : Array.isArray(submissionData) ? submissionData : [];
+        const nextMap = {};
+        for (const row of subRows) {
+          if (row?.homework == null) continue;
+          nextMap[String(row.homework)] = row.status || '';
+        }
+        setSubmissionStatusByHomework(nextMap);
+        setItems(
+          rows.filter(hw => {
+            const submissionStatus = String(nextMap[String(hw.id)] || '').toUpperCase();
+            return submissionStatus !== 'SUBMITTED' && submissionStatus !== 'GRADED';
+          })
+        );
+      } else {
+        setSubmissionStatusByHomework({});
+        setItems(rows);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load assignments.');
     } finally {
@@ -176,8 +234,11 @@ const AssignmentList = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ q: '', classId: '', section: '', subjectId: '', date: '' });
-    setSearchParams(new URLSearchParams());
+    setFilters({ q: '', classId: scopedClassId, section: scopedSection, subjectId: '', date: '' });
+    const next = new URLSearchParams();
+    if (scopedClassId) next.set('class', scopedClassId);
+    if (scopedSection) next.set('section', scopedSection);
+    setSearchParams(next);
   };
 
   if (!canUseApi) return <Navigate to="/portal" replace state={{ error: 'Please sign in to continue.' }} />;
@@ -191,9 +252,11 @@ const AssignmentList = () => {
           <div className="card-header flex justify-between items-center">
             <h6 className="card-title">Assignment List</h6>
             <div className="flex gap-2">
-              <Link className="btn btn-sm bg-primary text-white" to="/portal/assignment/create">
-                Create
-              </Link>
+              {canCreate ? (
+                <Link className="btn btn-sm bg-primary text-white" to="/portal/assignment/create">
+                  Create
+                </Link>
+              ) : null}
               <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }}>
                 Refresh
               </button>
@@ -202,6 +265,7 @@ const AssignmentList = () => {
           <div className="card-body">
             <div className="flex flex-col">
               {error ? <div className="px-5 pt-4 text-sm text-danger">{error}</div> : null}
+
               <div className="mb-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
@@ -244,6 +308,7 @@ const AssignmentList = () => {
                           subjectId: '',
                         }))
                       }
+                      disabled={hasLockedClassSection}
                     >
                       <option value="">All classes</option>
                       {classOptions.map(option => (
@@ -259,7 +324,7 @@ const AssignmentList = () => {
                       className="form-input"
                       value={filters.section}
                       onChange={e => setFilters(prev => ({ ...prev, section: e.target.value, subjectId: '' }))}
-                      disabled={!filters.classId || sectionOptions.length === 0}
+                      disabled={hasLockedClassSection || !filters.classId || sectionOptions.length === 0}
                     >
                       <option value="">{sectionOptions.length ? 'All sections' : 'No sections'}</option>
                       {sectionOptions.map(section => (
@@ -303,14 +368,17 @@ const AssignmentList = () => {
                   </div>
                 </div>
               </div>
+
               {isLoading ? <div className="px-5 py-4 text-sm">Loading...</div> : null}
               {!isLoading && items.length === 0 ? <div className="px-5 py-4 text-sm text-default-600">No assignment found.</div> : null}
+
               {items.length ? (
                 <>
                   <div className="px-5 pt-4 text-sm text-default-600">
                     Showing assignments for <span className="font-semibold text-default-800">{selectedClass?.name || 'All Classes'}</span>
                     {filters.section ? <span className="text-default-500"> ({filters.section})</span> : null}
                   </div>
+
                   <div className="mx-5 my-4 rounded-lg border border-default-200 bg-card overflow-hidden">
                     <div className="overflow-x-auto">
                       <div className="min-w-full inline-block align-middle">
@@ -337,38 +405,51 @@ const AssignmentList = () => {
                                   <td className="px-3.5 py-3 text-sm">{formatDate(hw.class_date)}</td>
                                   <td className="px-3.5 py-3 text-sm">{hw.subject_label || '-'}</td>
                                   <td className="px-3.5 py-3 text-sm">{formatDateTime(hw.due_date)}</td>
-                                  <td className="px-3.5 py-3 text-sm">{hw.status}</td>
                                   <td className="px-3.5 py-3 text-sm">
-                                    <div className="flex items-center gap-3">
-                                      <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
-                                        View
-                                      </Link>
-                                      <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
-                                        Edit
-                                      </Link>
-                                      <Link className="text-primary underline" to={`/portal/assignment/submissions?homework=${encodeURIComponent(hw.id)}`}>
-                                        Review
-                                      </Link>
-                                      {canPublish && hw.status !== 'PUBLISHED' ? (
-                                        <button
-                                          type="button"
-                                          className="text-success underline disabled:text-default-400"
-                                          disabled={busyId === hw.id}
-                                          onClick={() => publishAssignment(hw.id)}
-                                        >
-                                          {busyId === hw.id ? 'Publishing...' : 'Activate'}
-                                        </button>
-                                      ) : null}
-                                      {canDelete ? (
-                                        <button
-                                          type="button"
-                                          className="text-danger underline disabled:text-default-400"
-                                          disabled={busyId === hw.id}
-                                          onClick={() => deleteAssignment(hw.id)}
-                                        >
-                                          {busyId === hw.id ? 'Working...' : 'Delete'}
-                                        </button>
-                                      ) : null}
+                                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getStatusBadgeClass(role === 'STUDENT' ? (submissionStatusByHomework[String(hw.id)] || hw.status) : hw.status)}`}>
+                                      {role === 'STUDENT' ? (submissionStatusByHomework[String(hw.id)] || hw.status) : hw.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-3.5 py-3 text-sm">
+                                    <div className="flex flex-wrap gap-2">
+                                      {role === 'STUDENT' ? (
+                                        <>
+                                          <Link className="btn btn-sm bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200" to={`/portal/assignment/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                            View
+                                          </Link>
+                                          <Link className="btn btn-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200" to={`/portal/assignment/${encodeURIComponent(hw.id)}/submit`}>
+                                            Submit
+                                          </Link>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Link className="btn btn-sm bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200" to={`/portal/assignment/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                            View
+                                          </Link>
+                                          <Link className="btn btn-sm bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200" to={`/portal/assignment/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
+                                            Edit
+                                          </Link>
+                                          <Link className="btn btn-sm bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200" to={`/portal/assignment/submissions?homework=${encodeURIComponent(hw.id)}`}>
+                                            Review
+                                          </Link>
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 disabled:opacity-60"
+                                            disabled={!canPublish || hw.status === 'PUBLISHED' || busyId === hw.id}
+                                            onClick={() => publishAssignment(hw.id)}
+                                          >
+                                            {busyId === hw.id ? 'Publishing...' : 'Activate'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200 disabled:opacity-60"
+                                            disabled={!canDelete || busyId === hw.id}
+                                            onClick={() => deleteAssignment(hw.id)}
+                                          >
+                                            {busyId === hw.id ? 'Working...' : 'Delete'}
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>

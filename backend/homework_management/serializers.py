@@ -82,6 +82,7 @@ class SubmissionAnnotationSerializer(serializers.ModelSerializer):
 
 class HomeworkSubmissionSerializer(serializers.ModelSerializer):
     student_name = serializers.SerializerMethodField(read_only=True)
+    student_roll_no = serializers.IntegerField(source="student.roll_no", read_only=True)
     student_username = serializers.CharField(source="student.user.username", read_only=True)
     student_email = serializers.SerializerMethodField(read_only=True)
     student_phone = serializers.SerializerMethodField(read_only=True)
@@ -89,6 +90,8 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
     parent_email = serializers.CharField(source="student.parent.email", read_only=True)
     parent_phone = serializers.CharField(source="student.parent.phone", read_only=True)
     homework_title = serializers.CharField(source="homework.title", read_only=True)
+    homework_subject_label = serializers.CharField(source="homework.subject.name", read_only=True)
+    homework_class_date = serializers.DateField(source="homework.class_date", read_only=True)
     homework_due_date = serializers.DateTimeField(source="homework.due_date", read_only=True)
     latest_graded_by = serializers.SerializerMethodField(read_only=True)
     latest_graded_at = serializers.SerializerMethodField(read_only=True)
@@ -101,9 +104,12 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
             "id",
             "homework",
             "homework_title",
+            "homework_subject_label",
+            "homework_class_date",
             "homework_due_date",
             "student",
             "student_name",
+            "student_roll_no",
             "student_username",
             "student_email",
             "student_phone",
@@ -111,6 +117,7 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
             "parent_email",
             "parent_phone",
             "content_html",
+            "submission_pdf",
             "submitted_at",
             "status",
             "is_late_submission",

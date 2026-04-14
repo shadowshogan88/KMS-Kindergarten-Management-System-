@@ -38,6 +38,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "school_class",
             "school_class_label",
             "section",
+            "roll_no",
             "date_of_birth",
             "photo",
             "parent",
@@ -66,6 +67,11 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        view = self.context.get("view")
+        action = getattr(view, "action", "")
+        if action != "change_roll" and "roll_no" in (getattr(self, "initial_data", {}) or {}):
+            raise serializers.ValidationError({"roll_no": "Use the change-roll endpoint to update roll number."})
+
         is_creating = self.instance is None
         create_user = bool(attrs.get("create_user")) if "create_user" in attrs else False
         # If create_user is not provided on create, default it to True (portal behavior).
@@ -166,6 +172,14 @@ class StudentSerializer(serializers.ModelSerializer):
         self._generated_username = username
         self._generated_password = password
         return student
+
+    def update(self, instance, validated_data):
+        school_class_changed = "school_class" in validated_data and validated_data.get("school_class") != instance.school_class
+        section_changed = "section" in validated_data and (validated_data.get("section") or "").strip().upper() != (instance.section or "")
+        if school_class_changed or section_changed:
+            # Re-assign roll from the target class/section scope.
+            validated_data["roll_no"] = None
+        return super().update(instance, validated_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

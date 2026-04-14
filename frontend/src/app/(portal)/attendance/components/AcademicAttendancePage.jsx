@@ -365,6 +365,7 @@ const AcademicAttendancePage = () => {
                     <table className="min-w-full divide-y divide-default-200">
                       <thead className="bg-default-100 font-normal whitespace-nowrap">
                         <tr className="text-sm text-default-800">
+                          <th className="px-3.5 py-3 font-medium text-start">Roll</th>
                           <th className="px-3.5 py-3 font-medium text-start">Student</th>
                           <th className="px-3.5 py-3 font-medium text-start">Status</th>
                           <th className="px-3.5 py-3 font-medium text-start">Action</th>
@@ -373,7 +374,7 @@ const AcademicAttendancePage = () => {
                       <tbody className="divide-y divide-default-200">
                         {!selectedParts.school_class ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
-                            <td className="px-3.5 py-4 text-sm" colSpan={3}>
+                            <td className="px-3.5 py-4 text-sm" colSpan={4}>
                               Select a class to take attendance.
                             </td>
                           </tr>
@@ -381,7 +382,7 @@ const AcademicAttendancePage = () => {
 
                         {selectedParts.school_class && isLoading ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
-                            <td className="px-3.5 py-4 text-sm" colSpan={3}>
+                            <td className="px-3.5 py-4 text-sm" colSpan={4}>
                               Loading...
                             </td>
                           </tr>
@@ -389,7 +390,7 @@ const AcademicAttendancePage = () => {
 
                         {selectedParts.school_class && !isLoading && sheet && !attendanceDisabled && students.length === 0 ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
-                            <td className="px-3.5 py-4 text-sm" colSpan={3}>
+                            <td className="px-3.5 py-4 text-sm" colSpan={4}>
                               No students found.
                             </td>
                           </tr>
@@ -397,7 +398,7 @@ const AcademicAttendancePage = () => {
 
                         {selectedParts.school_class && !isLoading && sheet && attendanceDisabled ? (
                           <tr className="text-default-800 font-normal whitespace-nowrap">
-                            <td className="px-3.5 py-4 text-sm" colSpan={3}>
+                            <td className="px-3.5 py-4 text-sm" colSpan={4}>
                               <div className="rounded-md border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
                                 <div className="font-semibold">Break for Holiday: {holidayInfo?.title || 'Holiday'}</div>
                                 {holidayInfo?.description ? <div className="mt-1 text-xs text-default-700">{holidayInfo.description}</div> : null}
@@ -409,6 +410,7 @@ const AcademicAttendancePage = () => {
                         {!attendanceDisabled
                           ? students.map(s => (
                               <tr key={s.id} className="text-default-800 font-normal whitespace-nowrap">
+                                <td className="px-3.5 py-3 text-sm">{s.roll_no || '-'}</td>
                                 <td className="px-3.5 py-3 text-sm">{s.name}</td>
                                 <td className="px-3.5 py-3 text-sm">
                                   {s.status ? (

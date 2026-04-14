@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
-import { LuArrowDown, LuArrowUp, LuDownload, LuMessageSquare, LuRefreshCw, LuSave } from 'react-icons/lu';
+import { Link, Navigate, useLocation, useParams } from 'react-router';
+import { LuArrowDown, LuArrowUp, LuCamera, LuDownload, LuExpand, LuMessageSquare, LuPencilLine, LuRefreshCw, LuSave, LuSend, LuShrink, LuTrash2, LuX } from 'react-icons/lu';
 
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import PageMeta from '@/components/PageMeta';
 import SubmissionAnnotationModal from '@/app/(portal)/homework/components/SubmissionAnnotationModal';
-import { apiJson } from '@/utils/api';
+import { apiForm, apiJson } from '@/utils/api';
 import { authStorage, getApiBaseUrl } from '@/utils/auth';
 import { openOverlay } from '@/utils/overlay';
 
@@ -29,36 +29,65 @@ const resolveApiUrl = maybeRelative => {
   return `${base}/${s}`;
 };
 
+const sortImages = images =>
+  (Array.isArray(images) ? images : []).slice().sort((a, b) => Number(a.page_number || 0) - Number(b.page_number || 0));
+
+const moveItem = (arr, from, to) => {
+  const next = arr.slice();
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+};
+
+const buildPageInputs = ids => Object.fromEntries(ids.map((id, index) => [id, String(index + 1)]));
+
+const formatDateTime = value => {
+  if (!value) return '';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return String(value);
+  return dt.toLocaleString();
+};
+
 const HomeworkSubmissionDetail = () => {
   const canUseApi = Boolean(authStorage.getAccess());
   const token = authStorage.getAccess();
   const user = authStorage.getUser();
   const role = user?.role || '';
+  const isStudent = role === 'STUDENT';
   const isTeacher = role === 'TEACHER' || role === 'ADMIN';
-  const canReorder = role === 'ADMIN' || role === 'TEACHER' || role === 'STUDENT';
   const canAnnotate = isTeacher;
 
   const { submissionId } = useParams();
+  const location = useLocation();
+  const isAssignmentPath = location.pathname.includes('/portal/assignment/submissions/');
+  const backRoute = isAssignmentPath ? '/portal/assignment/submissions' : '/portal/homework/submissions';
+
   const [submission, setSubmission] = useState(null);
+  const [homework, setHomework] = useState(null);
+  const [images, setImages] = useState([]);
+  const [orderedIds, setOrderedIds] = useState([]);
+  const [pageInputs, setPageInputs] = useState({});
+  const [gradeLogs, setGradeLogs] = useState([]);
+
+  const [activeImage, setActiveImage] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [annotationImage, setAnnotationImage] = useState(null);
-  const [gradeLogs, setGradeLogs] = useState([]);
+
   const [marks, setMarks] = useState('');
   const [feedback, setFeedback] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [isGrading, setIsGrading] = useState(false);
-  const [isReordering, setIsReordering] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busyImageId, setBusyImageId] = useState(null);
   const [error, setError] = useState('');
   const [flash, setFlash] = useState('');
 
-  const images = useMemo(() => {
-    const rows = Array.isArray(submission?.images) ? [...submission.images] : [];
-    rows.sort((a, b) => Number(a.page_number || 0) - Number(b.page_number || 0));
-    return rows;
-  }, [submission?.images]);
-
+  const canUploadPages = isStudent && submission?.status !== 'GRADED';
+  const canReorder = canUploadPages || isTeacher;
   const canGrade = useMemo(() => isTeacher && submission?.id, [isTeacher, submission?.id]);
 
   const load = async ({ silent = false } = {}) => {
@@ -74,20 +103,25 @@ const HomeworkSubmissionDetail = () => {
         isTeacher ? apiJson(`/grades/?submission=${encodeURIComponent(submissionId)}`).catch(() => []) : Promise.resolve([]),
       ]);
 
+      const hwData = submissionData?.homework ? await apiJson(`/homeworks/${encodeURIComponent(submissionData.homework)}/`).catch(() => null) : null;
+      const imgRows = sortImages(submissionData?.images);
+      const nextIds = imgRows.map(i => i.id);
+      const logRows = Array.isArray(logData?.results) ? logData.results : Array.isArray(logData) ? logData : [];
+
       setSubmission(submissionData);
+      setHomework(hwData);
+      setImages(imgRows);
+      setOrderedIds(nextIds);
+      setPageInputs(buildPageInputs(nextIds));
+      setGradeLogs(logRows);
       setMarks(submissionData?.marks_display || (submissionData?.teacher_marks ?? ''));
       setFeedback(submissionData?.teacher_feedback ?? '');
 
-      const logRows = Array.isArray(logData?.results) ? logData.results : Array.isArray(logData) ? logData : [];
-      setGradeLogs(logRows);
-
-      const incomingImages = Array.isArray(submissionData?.images) ? submissionData.images : [];
-      if (!incomingImages.length) {
+      if (!imgRows.length) {
         setSelectedImageId(null);
         setSelectedImage(null);
       } else {
-        const existing = incomingImages.find(img => String(img.id) === String(selectedImageId));
-        const next = existing || [...incomingImages].sort((a, b) => Number(a.page_number || 0) - Number(b.page_number || 0))[0];
+        const next = imgRows.find(img => String(img.id) === String(selectedImageId)) || imgRows[0];
         setSelectedImageId(next?.id || null);
         setSelectedImage(next || null);
       }
@@ -138,6 +172,124 @@ const HomeworkSubmissionDetail = () => {
     }
   };
 
+  const uploadFiles = async files => {
+    if (!submission?.id || !files?.length) return;
+    setError('');
+    setFlash('');
+    setIsUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('submission', String(submission.id));
+        formData.append('image', file);
+        await apiForm('/submission-images/', { method: 'POST', formData });
+      }
+      setFlash('Upload completed.');
+      await load({ silent: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const saveOrderedIds = async nextOrderedIds => {
+    if (!submission?.id || nextOrderedIds.length < 1) return;
+    setIsSavingOrder(true);
+    try {
+      await apiJson('/submission-images/reorder/', {
+        method: 'POST',
+        body: { submission: submission.id, ordered_image_ids: nextOrderedIds },
+      });
+      setFlash('Page order updated.');
+      await load({ silent: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to reorder pages.');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const onDragStart = (e, id) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+  };
+
+  const onDrop = async (e, id) => {
+    e.preventDefault();
+    const fromId = e.dataTransfer.getData('text/plain');
+    if (!fromId) return;
+    const fromIdx = orderedIds.findIndex(x => String(x) === String(fromId));
+    const toIdx = orderedIds.findIndex(x => String(x) === String(id));
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    const nextOrderedIds = moveItem(orderedIds, fromIdx, toIdx);
+    setOrderedIds(nextOrderedIds);
+    setPageInputs(buildPageInputs(nextOrderedIds));
+    setError('');
+    setFlash('');
+    await saveOrderedIds(nextOrderedIds);
+  };
+
+  const moveImage = async (index, direction) => {
+    if (!images.length) return;
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= images.length) return;
+    const ordered = [...images];
+    const [picked] = ordered.splice(index, 1);
+    ordered.splice(nextIndex, 0, picked);
+    const nextOrderedIds = ordered.map(img => img.id);
+    setOrderedIds(nextOrderedIds);
+    setPageInputs(buildPageInputs(nextOrderedIds));
+    await saveOrderedIds(nextOrderedIds);
+  };
+
+  const updateImagePageNumber = async img => {
+    const raw = String(pageInputs[img.id] || '').trim();
+    const nextPage = Number(raw);
+    if (!Number.isInteger(nextPage) || nextPage < 1) {
+      setError('Page number must be 1 or greater.');
+      return;
+    }
+    setBusyImageId(img.id);
+    setError('');
+    setFlash('');
+    try {
+      await apiJson(`/submission-images/${img.id}/`, {
+        method: 'PATCH',
+        body: { page_number: nextPage },
+      });
+      setFlash('Page number updated.');
+      await load({ silent: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update page number.');
+    } finally {
+      setBusyImageId(null);
+    }
+  };
+
+  const deleteImage = async img => {
+    if (!img?.id) return;
+    setBusyImageId(img.id);
+    setError('');
+    setFlash('');
+    try {
+      await apiJson(`/submission-images/${img.id}/`, { method: 'DELETE' });
+      setFlash('Image deleted.');
+      await load({ silent: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete image.');
+    } finally {
+      setBusyImageId(null);
+    }
+  };
+
+  const openAnnotate = img => {
+    if (!canAnnotate) return;
+    setActiveImage(img || null);
+    setSelectedImageId(img?.id || null);
+    requestAnimationFrame(() => openOverlay(ANNOTATE_MODAL_ID));
+  };
+
   const grade = async () => {
     if (!canGrade) return;
     setError('');
@@ -158,47 +310,20 @@ const HomeworkSubmissionDetail = () => {
     }
   };
 
-  const reorderImages = async orderedIds => {
-    if (!submission?.id || !orderedIds?.length) return;
-    setIsReordering(true);
+  const submitFinal = async () => {
+    if (!submission?.id) return;
     setError('');
     setFlash('');
+    setIsSubmitting(true);
     try {
-      await apiJson('/submission-images/reorder/', {
-        method: 'POST',
-        body: { submission: submission.id, ordered_image_ids: orderedIds },
-      });
-      setSubmission(prev => {
-        if (!prev) return prev;
-        const idToImg = new Map((prev.images || []).map(img => [img.id, { ...img }]));
-        const nextImages = orderedIds.map((id, index) => ({
-          ...idToImg.get(id),
-          page_number: index + 1,
-        }));
-        return { ...prev, images: nextImages };
-      });
-      setFlash('Pages reordered.');
+      await apiJson(`/submissions/${submission.id}/submit/`, { method: 'POST' });
+      setFlash('Submission submitted. Teachers/admin can review it now.');
+      await load({ silent: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to reorder pages.');
+      setError(e instanceof Error ? e.message : 'Failed to submit.');
     } finally {
-      setIsReordering(false);
+      setIsSubmitting(false);
     }
-  };
-
-  const moveImage = (index, direction) => {
-    if (!images.length) return;
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= images.length) return;
-    const ordered = [...images];
-    const [picked] = ordered.splice(index, 1);
-    ordered.splice(nextIndex, 0, picked);
-    reorderImages(ordered.map(img => img.id));
-  };
-
-  const openAnnotation = image => {
-    if (!canAnnotate) return;
-    setAnnotationImage(image);
-    requestAnimationFrame(() => openOverlay(ANNOTATE_MODAL_ID));
   };
 
   const handleAnnotationSaved = async message => {
@@ -221,10 +346,10 @@ const HomeworkSubmissionDetail = () => {
               <div className="text-xs text-default-600 truncate">{submission?.homework_title || ''}</div>
             </div>
             <div className="flex gap-2">
-              <Link className="btn btn-sm bg-default-200" to="/portal/homework/submissions">
+              <Link className="btn btn-sm bg-default-200" to={backRoute}>
                 Back
               </Link>
-              <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }} disabled={isLoading}>
+              <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }} disabled={isLoading || isUploading}>
                 <LuRefreshCw className="inline size-4" /> Refresh
               </button>
               <button className="btn btn-sm bg-primary text-white" onClick={downloadPdf} disabled={!images.length}>
@@ -238,169 +363,287 @@ const HomeworkSubmissionDetail = () => {
             {flash ? <div className="mb-3 text-sm text-success">{flash}</div> : null}
             {isLoading ? <div className="text-sm">Loading...</div> : null}
 
-            {submission ? (
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                <div className="xl:col-span-8 space-y-4">
-                  <div className="rounded-lg border border-default-200 bg-default-50 p-3">
-                    <div className="text-sm text-default-700 flex flex-wrap gap-2">
-                      <span>Student: <span className="font-semibold">{submission.student_name}</span></span>
-                      <span>Status: <span className="font-semibold">{submission.status}</span></span>
+            {submission?.id ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm text-default-700">
+                      Status:{' '}
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
+                          submission.status === 'DRAFT'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                            : submission.status === 'SUBMITTED'
+                              ? 'bg-sky-100 text-sky-800 border border-sky-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}
+                      >
+                        {submission.status}
+                      </span>
                       {submission.submitted_at ? (
-                        <span>Submitted: <span className="font-semibold">{String(submission.submitted_at).slice(0, 19).replace('T', ' ')}</span></span>
+                        <span className="text-default-600">
+                          {' '}· Submitted: {String(submission.submitted_at).slice(0, 19).replace('T', ' ')}
+                        </span>
                       ) : null}
-                      {submission.is_late_submission ? <span className="text-danger font-semibold">Late submission</span> : null}
                     </div>
-                    {submission.content_html ? (
-                      <div className="mt-3 rounded-md border border-default-200 bg-white p-3">
-                        <div className="mb-2 text-sm font-medium text-default-700">Written answer</div>
-                        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: submission.content_html }} />
-                      </div>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      {canUploadPages ? (
+                        <label className="btn btn-sm bg-primary text-white">
+                          <LuCamera className="inline size-4" /> Add photos
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            multiple
+                            className="hidden"
+                            disabled={isUploading}
+                            onChange={e => uploadFiles(e.target.files)}
+                          />
+                        </label>
+                      ) : null}
+                      {isStudent && submission?.status === 'DRAFT' ? (
+                        <button className="btn btn-sm bg-emerald-600 text-white" onClick={submitFinal} disabled={isSubmitting}>
+                          <LuSend className="inline size-4" /> {isSubmitting ? 'Submitting...' : 'Submit'}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="rounded-lg border border-default-200 bg-default-50 p-3">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-semibold text-default-800">Submission pages</div>
-                        <div className="text-xs text-default-500">Select a page to preview, annotate, or reorder.</div>
-                      </div>
-                      {isReordering ? <div className="text-xs text-default-500">Saving page order...</div> : null}
+                  {isStudent && submission?.status === 'DRAFT' ? (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      This submission is still in draft. Teacher/admin will only see it after you press Submit.
                     </div>
+                  ) : null}
 
-                    {!images.length ? (
-                      <div className="text-sm text-default-600">No pages uploaded yet.</div>
-                    ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                        <div className="lg:col-span-4 space-y-2">
-                          {images.map((img, index) => {
-                            const active = String(img.id) === String(selectedImageId);
-                            return (
-                              <div
-                                key={img.id}
-                                className={`rounded-md border p-2 ${active ? 'border-primary bg-primary/5' : 'border-default-200 bg-white'}`}
-                              >
-                                <button
-                                  type="button"
-                                  className="w-full text-left"
-                                  onClick={() => setSelectedImageId(img.id)}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-medium text-default-800">Page {img.page_number || index + 1}</div>
-                                    <div className="text-xs text-default-500">#{img.id}</div>
-                                  </div>
-                                  <img
-                                    src={resolveApiUrl(img.image)}
-                                    alt={`Submission page ${img.page_number || index + 1}`}
-                                    className="mt-2 h-28 w-full rounded border border-default-200 object-cover bg-default-100"
+                  {isUploading ? <div className="mt-2 text-sm text-default-500">Uploading...</div> : null}
+
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {orderedIds.map(id => {
+                      const img = images.find(i => String(i.id) === String(id));
+                      if (!img) return null;
+                      const displayPageNumber = orderedIds.findIndex(x => String(x) === String(id)) + 1;
+                      return (
+                        <div
+                          key={img.id}
+                          className="rounded-lg border border-default-200 bg-white overflow-hidden"
+                          draggable={canUploadPages}
+                          onDragStart={e => onDragStart(e, img.id)}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={e => onDrop(e, img.id)}
+                        >
+                          <div className="relative">
+                            <img src={resolveApiUrl(img.image)} alt={`Page ${displayPageNumber}`} className="w-full aspect-[3/4] object-cover" />
+                            <div className="absolute top-1 left-1 rounded bg-black/70 text-white text-xs px-2 py-0.5">
+                              #{displayPageNumber}
+                            </div>
+                            <button
+                              type="button"
+                              className="absolute top-1 right-1 rounded bg-black/70 text-white p-1.5 hover:bg-black/85"
+                              onClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFullscreenImage(current => current?.id === img.id ? null : img);
+                              }}
+                              title={fullscreenImage?.id === img.id ? 'Close full screen' : 'Open full screen'}
+                            >
+                              {fullscreenImage?.id === img.id ? <LuX className="size-4" /> : <LuExpand className="size-4" />}
+                            </button>
+                          </div>
+                          <div className="p-2 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {canUploadPages ? (
+                                <>
+                                  <label className="text-[11px] text-default-500">Page</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="form-input h-8 min-w-0 w-20 text-xs"
+                                    value={pageInputs[img.id] ?? ''}
+                                    disabled={busyImageId === img.id}
+                                    onChange={e => setPageInputs(prev => ({ ...prev, [img.id]: e.target.value }))}
                                   />
+                                </>
+                              ) : (
+                                <div className="text-[11px] text-default-500">Page #{displayPageNumber}</div>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {canAnnotate ? (
+                                <button className="btn btn-xs bg-default-200 shrink-0" onClick={e => { e.preventDefault(); openAnnotate(img); }}>
+                                  <LuPencilLine className="inline size-4" /> Annotate
                                 </button>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {canReorder ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs bg-default-200"
-                                        onClick={() => moveImage(index, -1)}
-                                        disabled={isReordering || index === 0}
-                                      >
-                                        <LuArrowUp className="inline size-3.5" /> Up
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs bg-default-200"
-                                        onClick={() => moveImage(index, 1)}
-                                        disabled={isReordering || index === images.length - 1}
-                                      >
-                                        <LuArrowDown className="inline size-3.5" /> Down
-                                      </button>
-                                    </>
-                                  ) : null}
-                                  {canAnnotate ? (
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs bg-primary text-white"
-                                      onClick={() => openAnnotation(img)}
-                                    >
-                                      <LuMessageSquare className="inline size-3.5" /> Annotate
-                                    </button>
-                                  ) : null}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="lg:col-span-8">
-                          {selectedImage ? (
-                            <div className="rounded-md border border-default-200 bg-white p-3">
-                              <div className="mb-2 flex items-center justify-between gap-2">
-                                <div className="text-sm font-medium text-default-800">Page {selectedImage.page_number}</div>
-                                {canAnnotate ? (
+                              ) : null}
+                              {canReorder ? (
+                                <>
                                   <button
                                     type="button"
-                                    className="btn btn-sm bg-primary text-white"
-                                    onClick={() => openAnnotation(selectedImage)}
+                                    className="btn btn-xs bg-default-200 shrink-0"
+                                    onClick={() => moveImage(orderedIds.findIndex(x => String(x) === String(id)), -1)}
+                                    disabled={isSavingOrder || orderedIds.findIndex(x => String(x) === String(id)) === 0}
                                   >
-                                    <LuMessageSquare className="inline size-4" /> Annotate this page
+                                    <LuArrowUp className="inline size-3.5" /> Up
                                   </button>
-                                ) : null}
-                              </div>
-                              <img
-                                src={resolveApiUrl(selectedImage.image)}
-                                alt={`Submission page ${selectedImage.page_number}`}
-                                className="w-full rounded border border-default-200 bg-default-100"
-                              />
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs bg-default-200 shrink-0"
+                                    onClick={() => moveImage(orderedIds.findIndex(x => String(x) === String(id)), 1)}
+                                    disabled={isSavingOrder || orderedIds.findIndex(x => String(x) === String(id)) === orderedIds.length - 1}
+                                  >
+                                    <LuArrowDown className="inline size-3.5" /> Down
+                                  </button>
+                                </>
+                              ) : null}
+                              {canUploadPages ? (
+                                <button
+                                  className="btn btn-xs bg-danger text-white shrink-0"
+                                  onClick={e => {
+                                    e.preventDefault();
+                                    deleteImage(img);
+                                  }}
+                                  disabled={busyImageId === img.id}
+                                >
+                                  <LuTrash2 className="inline size-3.5" /> Delete
+                                </button>
+                              ) : null}
                             </div>
-                          ) : (
-                            <div className="text-sm text-default-600">Select a page to preview.</div>
-                          )}
+                            {canUploadPages ? <div className="text-[11px] text-default-500 break-words">Drag to reorder and page number will update automatically.</div> : null}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
+
+                  {!orderedIds.length ? (
+                    <div className="mt-3 text-sm text-default-600">
+                      Add photos using the camera button above. You can upload multiple pages and reorder them.
+                    </div>
+                  ) : null}
+
+                  {submission?.submission_pdf ? (
+                    <div className="mt-4 rounded-xl border border-default-200 bg-white p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-sm font-medium text-default-800">Submitted PDF</div>
+                        <a
+                          className="text-xs text-primary underline"
+                          href={resolveApiUrl(submission.submission_pdf)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open in new tab
+                        </a>
+                      </div>
+                      <iframe
+                        title="Submitted PDF"
+                        src={resolveApiUrl(submission.submission_pdf)}
+                        className="w-full h-[520px] rounded-md border border-default-200"
+                      />
+                    </div>
+                  ) : null}
+
                 </div>
 
-                <div className="xl:col-span-4 space-y-4">
-                  <div className="rounded-lg border border-default-200 bg-default-50 p-3">
-                    <div className="text-sm font-semibold text-default-800 mb-2">Grading</div>
-                    {!isTeacher ? (
-                      <div className="text-sm text-default-600">Only teachers/admin can grade.</div>
-                    ) : (
-                      <>
-                        <div className="mb-3">
+                <div className="lg:col-span-1">
+                  <div className="rounded-2xl border border-emerald-200 bg-linear-to-br from-emerald-50 via-teal-50 to-lime-50 p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Evaluation</div>
+                        <div className="mt-1 text-base font-semibold text-default-900">Teacher Grade</div>
+                      </div>
+                      <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+                        {submission?.marks_display || 'Pending'}
+                      </div>
+                    </div>
+
+                    {isTeacher ? (
+                      <div className="mt-4 grid grid-cols-1 gap-3">
+                        <div>
                           <label className="inline-block mb-2 text-sm font-medium">Marks</label>
                           <input className="form-input w-full" value={marks} onChange={e => setMarks(e.target.value)} disabled={isGrading} placeholder="80/100" />
                           <div className="mt-2 text-xs text-default-500">
                             Instruction: `90/100` means `obtained marks / total marks`.
                           </div>
                         </div>
-                        <div className="mb-3">
+                        <div>
                           <label className="inline-block mb-2 text-sm font-medium">Feedback</label>
                           <textarea className="form-input w-full min-h-24" value={feedback} onChange={e => setFeedback(e.target.value)} disabled={isGrading} />
                         </div>
                         <button className="btn bg-primary text-white w-full" onClick={grade} disabled={isGrading || !canGrade}>
                           <LuSave className="inline size-4" /> Save grade
                         </button>
-                      </>
+                      </div>
+                    ) : (
+                      <div className="mt-4 grid grid-cols-1 gap-3">
+                        <div className="rounded-xl bg-white/80 p-3 border border-white/70">
+                          <div className="text-[11px] uppercase tracking-wide text-default-500">Feedback</div>
+                          <div className="mt-1 text-sm text-default-800 whitespace-pre-wrap">
+                            {submission?.teacher_feedback || 'No feedback yet.'}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="rounded-xl bg-white/75 p-3 border border-white/70">
+                            <div className="text-[11px] uppercase tracking-wide text-default-500">Graded By</div>
+                            <div className="mt-1 text-sm font-medium text-default-900">{submission?.latest_graded_by || '-'}</div>
+                          </div>
+                          <div className="rounded-xl bg-white/75 p-3 border border-white/70">
+                            <div className="text-[11px] uppercase tracking-wide text-default-500">Graded At</div>
+                            <div className="mt-1 text-sm font-medium text-default-900">{formatDateTime(submission?.latest_graded_at) || '-'}</div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  <div className="rounded-lg border border-default-200 bg-default-50 p-3">
-                    <div className="text-sm font-semibold text-default-800 mb-2">Grade history</div>
-                    {!gradeLogs.length ? (
-                      <div className="text-sm text-default-600">No grade history yet.</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {gradeLogs.map(log => (
-                          <div key={log.id} className="rounded-md border border-default-200 bg-white p-2">
-                            <div className="text-sm font-medium text-default-800">Marks: {log.marks_display || log.marks}</div>
-                            <div className="text-xs text-default-500">
-                              {log.graded_by_label || 'Unknown'} | {String(log.graded_at || '').slice(0, 19).replace('T', ' ')}
-                            </div>
-                          </div>
-                        ))}
+                  <div className="mt-3 rounded-2xl border border-sky-200 bg-linear-to-br from-sky-50 via-cyan-50 to-blue-50 p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Assignment</div>
+                        <div className="mt-1 text-base font-semibold text-default-900">Homework</div>
                       </div>
-                    )}
+                      {homework?.due_date ? (
+                        <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-sky-700 shadow-sm">
+                          Due {String(homework.due_date).slice(0, 10)}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 rounded-xl bg-white/80 p-3 border border-white/70">
+                      <div className="text-[11px] uppercase tracking-wide text-default-500">Description</div>
+                      <div className="mt-1 text-sm text-default-800 prose prose-sm max-w-none">
+                        {homework?.description ? (
+                          <div dangerouslySetInnerHTML={{ __html: homework.description }} />
+                        ) : (
+                          <span className="text-default-500">No description.</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-white/75 p-3 border border-white/70">
+                        <div className="text-[11px] uppercase tracking-wide text-default-500">Due Time</div>
+                        <div className="mt-1 text-sm font-medium text-default-900">
+                          {homework?.due_date ? String(homework.due_date).slice(0, 19).replace('T', ' ') : '-'}
+                          {homework?.allow_late_submission ? ' (late allowed)' : ''}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-white/75 p-3 border border-white/70">
+                        <div className="text-[11px] uppercase tracking-wide text-default-500">Attachment</div>
+                        <div className="mt-1 text-sm font-medium text-default-900">
+                          {homework?.pdf_file ? (
+                            <a className="text-sky-700 underline decoration-sky-300 underline-offset-2" href={resolveApiUrl(homework.pdf_file)} target="_blank" rel="noreferrer">
+                              Open attachment
+                            </a>
+                          ) : (
+                            '-'
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-sky-100 bg-white/70 px-3 py-2 text-xs text-default-600">
+                      Tip: On mobile, "Add photos" opens the camera. You can select multiple shots before uploading.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -408,7 +651,33 @@ const HomeworkSubmissionDetail = () => {
           </div>
         </div>
 
-        {canAnnotate ? <SubmissionAnnotationModal image={annotationImage} onSaved={handleAnnotationSaved} /> : null}
+        {canAnnotate ? (
+          <SubmissionAnnotationModal
+            image={activeImage}
+            onSaved={msg => {
+              if (msg) setFlash(msg);
+              load({ silent: true });
+            }}
+          />
+        ) : null}
+
+        {fullscreenImage ? (
+          <div className="fixed inset-0 z-[9999] bg-black/85 p-4 flex items-center justify-center">
+            <button
+              type="button"
+              className="absolute top-4 right-4 rounded-full bg-white/10 text-white p-2 hover:bg-white/20"
+              onClick={() => setFullscreenImage(null)}
+              title="Close full screen"
+            >
+              <LuShrink className="size-5" />
+            </button>
+            <img
+              src={resolveApiUrl(fullscreenImage.image)}
+              alt={`Page ${fullscreenImage.page_number || ''}`}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+        ) : null}
       </main>
     </>
   );

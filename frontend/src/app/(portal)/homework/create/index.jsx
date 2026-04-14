@@ -37,6 +37,8 @@ const emptyForm = {
 
 const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homework' } = {}) => {
   const canUseApi = Boolean(authStorage.getAccess());
+  const user = authStorage.getUser();
+  const role = user?.role || '';
   const [searchParams] = useSearchParams();
   const homeworkId = (searchParams.get('id') || '').trim();
   const pageMode = ((searchParams.get('mode') || '').trim().toLowerCase() || 'create');
@@ -61,6 +63,10 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
   const pdfFileNameRef = useRef(pdfFileName);
 
   const noun = homeworkType === 'ASSIGNMENT' ? 'Assignment' : 'Homework';
+  const listRoute = homeworkType === 'ASSIGNMENT' ? '/portal/assignment' : '/portal/homework';
+  const createRoute = homeworkType === 'ASSIGNMENT' ? '/portal/assignment/create' : '/portal/homework/create';
+  const isPrivilegedEditor = role === 'ADMIN' || role === 'TEACHER';
+  const keepSelectionLocked = !(homeworkType === 'ASSIGNMENT' && isEditMode && isPrivilegedEditor);
   const pageHeading = isViewMode ? `View ${noun}` : isEditMode ? `Edit ${noun}` : pageTitle;
 
   useEffect(() => {
@@ -522,7 +528,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-select w-full"
                   value={form.classroom}
                   onChange={e => setForm(current => ({ ...current, classroom: e.target.value, subject: '' }))}
-                  disabled={isLocked || Boolean(String(form.classroom || '').trim())}
+                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.classroom || '').trim()))}
                   required
                 >
                   <option value="">Select class</option>
@@ -538,7 +544,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-select w-full"
                   value={form.subject}
                   onChange={e => setForm(current => ({ ...current, subject: e.target.value }))}
-                  disabled={isLocked || Boolean(String(form.subject || '').trim())}
+                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.subject || '').trim()))}
                   required
                 >
                   <option value="">Select subject</option>
@@ -560,7 +566,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-input w-full"
                   value={form.class_date}
                   onChange={e => setForm(current => ({ ...current, class_date: e.target.value }))}
-                  disabled={isLocked || Boolean(String(form.class_date || '').trim())}
+                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.class_date || '').trim()))}
                 />
                 <div className="mt-1 text-xs text-default-500">Optional: keeps homework grouped under the selected class date even if due date is later.</div>
               </div>
@@ -718,11 +724,11 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                 <div className="flex items-center gap-2">
                   {isViewMode ? (
                     <>
-                      <Link to="/portal/homework" className="btn bg-default-100 text-default-800">
+                      <Link to={listRoute} className="btn bg-default-100 text-default-800">
                         Back
                       </Link>
                       <Link
-                        to={`/portal/homework/create?id=${encodeURIComponent(homeworkId)}&mode=edit`}
+                        to={`${createRoute}?id=${encodeURIComponent(homeworkId)}&mode=edit`}
                         className="btn text-white"
                         style={{ background: 'rgb(111, 66, 193)' }}
                       >

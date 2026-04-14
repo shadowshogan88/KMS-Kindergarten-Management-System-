@@ -23,6 +23,10 @@ const formatDateTime = value => {
 
 const getStatusBadgeClass = status => {
   switch (String(status || '').toUpperCase()) {
+    case 'SUBMITTED':
+      return 'bg-sky-100 text-sky-700 ring-sky-200';
+    case 'GRADED':
+      return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
     case 'PUBLISHED':
       return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
     case 'DRAFT':
@@ -46,6 +50,7 @@ const HomeworkList = () => {
   const [busyId, setBusyId] = useState(null);
   const [classOptions, setClassOptions] = useState([]);
   const [subjectOptions, setSubjectOptions] = useState([]);
+  const [submissionStatusByHomework, setSubmissionStatusByHomework] = useState({});
   const canPublish = role === 'ADMIN' || role === 'TEACHER';
   const canDelete = role === 'ADMIN' || role === 'TEACHER';
   const scopedClassId = user?.student_school_class_id != null ? String(user.student_school_class_id) : '';
@@ -155,9 +160,29 @@ const HomeworkList = () => {
       if (subjectId) qs.set('subject', subjectId);
       if (date) qs.set('date', date);
 
-      const data = await apiJson(`/homeworks/?${qs.toString()}`);
+      const [data, submissionData] = await Promise.all([
+        apiJson(`/homeworks/?${qs.toString()}`),
+        role === 'STUDENT' ? apiJson('/submissions/').catch(() => []) : Promise.resolve([]),
+      ]);
       const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-      setItems(rows);
+      if (role === 'STUDENT') {
+        const subRows = Array.isArray(submissionData?.results) ? submissionData.results : Array.isArray(submissionData) ? submissionData : [];
+        const nextMap = {};
+        for (const row of subRows) {
+          if (row?.homework == null) continue;
+          nextMap[String(row.homework)] = row.status || '';
+        }
+        setSubmissionStatusByHomework(nextMap);
+        setItems(
+          rows.filter(hw => {
+            const submissionStatus = String(nextMap[String(hw.id)] || '').toUpperCase();
+            return submissionStatus !== 'SUBMITTED' && submissionStatus !== 'GRADED';
+          })
+        );
+      } else {
+        setSubmissionStatusByHomework({});
+        setItems(rows);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load homework.');
     } finally {
@@ -381,52 +406,48 @@ const HomeworkList = () => {
                                   <td className="px-3.5 py-3 text-sm">{hw.subject_label || '-'}</td>
                                   <td className="px-3.5 py-3 text-sm">{formatDateTime(hw.due_date)}</td>
                                   <td className="px-3.5 py-3 text-sm">
-                                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getStatusBadgeClass(hw.status)}`}>
-                                      {hw.status}
+                                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getStatusBadgeClass(role === 'STUDENT' ? (submissionStatusByHomework[String(hw.id)] || hw.status) : hw.status)}`}>
+                                      {role === 'STUDENT' ? (submissionStatusByHomework[String(hw.id)] || hw.status) : hw.status}
                                     </span>
                                   </td>
                                   <td className="px-3.5 py-3 text-sm">
                                     <div className="flex flex-wrap gap-2">
                                       {role === 'STUDENT' ? (
                                         <>
-                                          <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                          <Link className="btn btn-sm bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
                                             View
                                           </Link>
-                                          <Link className="text-primary underline" to={`/portal/homework/${hw.id}/submit`}>
+                                          <Link className="btn btn-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200" to={`/portal/homework/${encodeURIComponent(hw.id)}/submit`}>
                                             Submit
                                           </Link>
                                         </>
                                       ) : (
                                         <>
-                                          <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
+                                          <Link className="btn btn-sm bg-sky-100 text-sky-700 hover:bg-sky-200 border border-sky-200" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=view`}>
                                             View
                                           </Link>
-                                          <Link className="text-primary underline" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
+                                          <Link className="btn btn-sm bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200" to={`/portal/homework/create?id=${encodeURIComponent(hw.id)}&mode=edit`}>
                                             Edit
                                           </Link>
-                                          <Link className="text-primary underline" to={`/portal/homework/submissions?homework=${encodeURIComponent(hw.id)}`}>
+                                          <Link className="btn btn-sm bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200" to={`/portal/homework/submissions?homework=${encodeURIComponent(hw.id)}`}>
                                             Review
                                           </Link>
-                                          {canPublish && hw.status !== 'PUBLISHED' ? (
-                                            <button
-                                              type="button"
-                                              className="text-success underline disabled:text-default-400"
-                                              disabled={busyId === hw.id}
-                                              onClick={() => publishHomework(hw.id)}
-                                            >
-                                              {busyId === hw.id ? 'Publishing...' : 'Activate'}
-                                            </button>
-                                          ) : null}
-                                          {canDelete ? (
-                                            <button
-                                              type="button"
-                                              className="text-danger underline disabled:text-default-400"
-                                              disabled={busyId === hw.id}
-                                              onClick={() => deleteHomework(hw.id)}
-                                            >
-                                              {busyId === hw.id ? 'Working...' : 'Delete'}
-                                            </button>
-                                          ) : null}
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200 disabled:opacity-60"
+                                            disabled={!canPublish || hw.status === 'PUBLISHED' || busyId === hw.id}
+                                            onClick={() => publishHomework(hw.id)}
+                                          >
+                                            {busyId === hw.id ? 'Publishing...' : 'Activate'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="btn btn-sm bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200 disabled:opacity-60"
+                                            disabled={!canDelete || busyId === hw.id}
+                                            onClick={() => deleteHomework(hw.id)}
+                                          >
+                                            {busyId === hw.id ? 'Working...' : 'Delete'}
+                                          </button>
                                         </>
                                       )}
                                     </div>

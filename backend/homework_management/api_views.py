@@ -4,7 +4,7 @@ from io import BytesIO
 from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import FileResponse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
@@ -162,12 +162,22 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         user = self.request.user
         homework_id = self.request.query_params.get("homework")
+        hw_type = (self.request.query_params.get("type") or "").strip().upper()
+        roll_ordering = (F("student__roll_no").asc(nulls_last=True), "student__first_name", "student__last_name", "id")
         if homework_id:
             qs = qs.filter(homework_id=homework_id)
+        if hw_type in {Homework.TYPE_HOMEWORK, Homework.TYPE_ASSIGNMENT}:
+            qs = qs.filter(homework__homework_type=hw_type)
+        if homework_id:
+            qs = qs.order_by(*roll_ordering)
+        elif hw_type == Homework.TYPE_ASSIGNMENT:
+            qs = qs.order_by("homework_id", *roll_ordering)
 
         role = getattr(user, "role", None)
         if role == "STUDENT":
             return qs.filter(student__user_id=user.id)
+        if role == "ADMIN":
+            return qs
         if role == "TEACHER":
             assignments = list(
                 ClassTeacher.objects.filter(teacher__user_id=user.id).values_list("school_class_id", "section")
@@ -187,8 +197,6 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Not allowed.")
         if submission.status == HomeworkSubmission.STATUS_GRADED:
             raise ValidationError({"submission": "Submission is locked after grading."})
-        if submission.homework.due_date and timezone.now() > submission.homework.due_date:
-            raise ValidationError({"submission": "Submission is locked after the due date."})
         return True
 
     def perform_create(self, serializer):
@@ -336,6 +344,8 @@ class SubmissionImageViewSet(viewsets.ModelViewSet):
         role = getattr(user, "role", None)
         if role == "STUDENT":
             return qs.filter(submission__student__user_id=user.id)
+        if role == "ADMIN":
+            return qs.filter(submission__status__in=[HomeworkSubmission.STATUS_SUBMITTED, HomeworkSubmission.STATUS_GRADED])
         if role == "TEACHER":
             assignments = list(
                 ClassTeacher.objects.filter(teacher__user_id=user.id).values_list("school_class_id", "section")
@@ -345,7 +355,7 @@ class SubmissionImageViewSet(viewsets.ModelViewSet):
             clause = Q()
             for c_id, sec in assignments:
                 clause |= Q(submission__homework__class_name_id=c_id, submission__homework__section=(sec or ""))
-            return qs.filter(clause)
+            return qs.filter(clause, submission__status__in=[HomeworkSubmission.STATUS_SUBMITTED, HomeworkSubmission.STATUS_GRADED])
         return qs
 
     def _student_can_modify_submission(self, submission, user):
@@ -355,8 +365,6 @@ class SubmissionImageViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Not allowed.")
         if submission.status == HomeworkSubmission.STATUS_GRADED:
             raise ValidationError({"submission": "Submission is locked after grading."})
-        if submission.homework.due_date and timezone.now() > submission.homework.due_date:
-            raise ValidationError({"submission": "Submission is locked after the due date."})
         return True
 
     def perform_create(self, serializer):

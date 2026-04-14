@@ -412,8 +412,16 @@ export const layoutsRoutes = [{
   name: 'PortalHomeworkSubmit',
   element: <PortalHomeworkSubmit />
 }, {
+  path: '/portal/assignment/:homeworkId/submit',
+  name: 'PortalAssignmentSubmit',
+  element: <PortalHomeworkSubmit />
+}, {
   path: '/portal/homework/submissions/:submissionId',
   name: 'PortalHomeworkSubmissionDetail',
+  element: <PortalHomeworkSubmissionDetail />
+}, {
+  path: '/portal/assignment/submissions/:submissionId',
+  name: 'PortalAssignmentSubmissionDetail',
   element: <PortalHomeworkSubmissionDetail />
 }, {
   path: '/portal/assignment',

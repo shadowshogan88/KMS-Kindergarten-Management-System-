@@ -41,9 +41,18 @@ export const menuItemsData = [{
     label: 'Weekly Holidays',
     href: '/portal/weekly-holidays'
   }, {
-    key: 'Students',
+    key: 'StudentsMenu',
     label: 'Students',
-    href: '/portal/students'
+    href: '#',
+    children: [{
+      key: 'Students',
+      label: 'Student List',
+      href: '/portal/students'
+    }, {
+      key: 'StudentRollManagement',
+      label: 'Roll Management',
+      href: '/portal/students?tab=roll'
+    }]
   }, {
     key: 'AcademicAttendance',
     label: 'Attendance',

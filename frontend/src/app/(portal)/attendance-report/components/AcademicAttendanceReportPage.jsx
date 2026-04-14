@@ -130,7 +130,11 @@ const AcademicAttendanceReportPage = () => {
     }
     const q = (search || '').trim().toLowerCase();
     if (!q) return list;
-    return list.filter(s => String(s?.name || '').toLowerCase().includes(q));
+    return list.filter(s => {
+      const name = String(s?.name || '').toLowerCase();
+      const roll = String(s?.roll_no || '').toLowerCase();
+      return name.includes(q) || roll.includes(q);
+    });
   }, [data?.students, isStudent, search, user?.student_id]);
 
   const days = useMemo(() => (Array.isArray(data?.days) ? data.days : []), [data?.days]);
@@ -209,6 +213,9 @@ const AcademicAttendanceReportPage = () => {
                 <thead className="bg-default-100 font-normal whitespace-nowrap">
                   <tr className="text-sm  text-default-800">
                     <th scope="col" className="px-3.5 py-3 font-medium text-start">
+                      Roll
+                    </th>
+                    <th scope="col" className="px-3.5 py-3 font-medium text-start">
                       Student Name
                     </th>
                     {days.map(d => (
@@ -221,7 +228,7 @@ const AcademicAttendanceReportPage = () => {
                 <tbody className="divide-y divide-default-200">
                   {!selectedParts.school_class ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(2, days.length + 2)}>
                         Select a class to view report.
                       </td>
                     </tr>
@@ -229,7 +236,7 @@ const AcademicAttendanceReportPage = () => {
 
                   {selectedParts.school_class && isLoading ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(2, days.length + 2)}>
                         Loading...
                       </td>
                     </tr>
@@ -237,7 +244,7 @@ const AcademicAttendanceReportPage = () => {
 
                   {selectedParts.school_class && !isLoading && data && rows.length === 0 ? (
                     <tr className="text-default-800 font-normal whitespace-nowrap">
-                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(1, days.length + 1)}>
+                      <td className="px-3.5 py-4 text-sm" colSpan={Math.max(2, days.length + 2)}>
                         No students found.
                       </td>
                     </tr>
@@ -245,6 +252,7 @@ const AcademicAttendanceReportPage = () => {
 
                   {rows.map(r => (
                     <tr key={r.id} className="text-default-800 font-normal whitespace-nowrap">
+                      <td className="px-3.5 py-3 text-sm">{r.roll_no || '-'}</td>
                       <td className="px-3.5 py-3 text-sm">{r.name}</td>
                       {days.map(d => (
                         <td key={d} className="px-3.5 py-3 text-sm text-center">

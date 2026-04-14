@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
-import { LuCamera, LuExpand, LuPencilLine, LuRefreshCw, LuSave, LuSend, LuShrink, LuTrash2, LuX } from 'react-icons/lu';
+import { Link, Navigate, useLocation, useParams } from 'react-router';
+import { LuCamera, LuExpand, LuFileUp, LuPencilLine, LuRefreshCw, LuSave, LuSend, LuShrink, LuTrash2, LuX } from 'react-icons/lu';
 
 import PageBreadcrumb from '@/components/PageBreadcrumb';
 import PageMeta from '@/components/PageMeta';
@@ -42,6 +42,7 @@ const HomeworkSubmit = () => {
   const user = authStorage.getUser();
   const role = user?.role || '';
   const { homeworkId } = useParams();
+  const location = useLocation();
 
   const [homework, setHomework] = useState(null);
   const [submission, setSubmission] = useState(null);
@@ -54,6 +55,7 @@ const HomeworkSubmit = () => {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPdfUploading, setIsPdfUploading] = useState(false);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [busyImageId, setBusyImageId] = useState(null);
@@ -62,6 +64,11 @@ const HomeworkSubmit = () => {
 
   const isStudent = role === 'STUDENT';
   const canAnnotate = role === 'ADMIN' || role === 'TEACHER';
+  const isAssignmentPath = location.pathname.includes('/portal/assignment/');
+  const isAssignment = isAssignmentPath || String(homework?.homework_type || '').toUpperCase() === 'ASSIGNMENT';
+  const noun = isAssignment ? 'Assignment' : 'Homework';
+  const listRoute = isAssignment ? '/portal/assignment' : '/portal/homework';
+  const reviewRoute = isAssignment ? '/portal/assignment/submissions' : '/portal/homework/submissions';
 
   const canEdit = useMemo(() => {
     if (!isStudent) return false;
@@ -136,6 +143,24 @@ const HomeworkSubmit = () => {
       setError(e instanceof Error ? e.message : 'Upload failed.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const uploadSubmissionPdf = async file => {
+    if (!submission?.id || !file) return;
+    setError('');
+    setFlash('');
+    setIsPdfUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('submission_pdf', file);
+      await apiForm(`/submissions/${submission.id}/`, { method: 'PATCH', formData });
+      setFlash('PDF uploaded.');
+      await load({ ensureSubmission: false });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'PDF upload failed.');
+    } finally {
+      setIsPdfUploading(false);
     }
   };
 
@@ -248,21 +273,21 @@ const HomeworkSubmit = () => {
 
   return (
     <>
-      <PageMeta title="Submit Homework" />
+      <PageMeta title={`Submit ${noun}`} />
       <main>
-        <PageBreadcrumb title="Submit Homework" subtitle="Educational" />
+        <PageBreadcrumb title={`Submit ${noun}`} subtitle="Educational" />
 
         <div className="card">
           <div className="card-header flex justify-between items-center">
             <div className="min-w-0">
-              <h6 className="card-title truncate">Homework #{homeworkId}</h6>
+              <h6 className="card-title truncate">{noun} #{homeworkId}</h6>
               <div className="text-xs text-default-600 truncate">{homework?.title || ''}</div>
             </div>
             <div className="flex gap-2">
-              <Link className="btn btn-sm bg-default-200" to="/portal/homework">
+              <Link className="btn btn-sm bg-default-200" to={listRoute}>
                 Back
               </Link>
-              <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }} disabled={isLoading || isUploading}>
+              <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }} disabled={isLoading || isUploading || isPdfUploading}>
                 <LuRefreshCw className="inline size-4" /> Refresh
               </button>
             </div>
@@ -276,7 +301,7 @@ const HomeworkSubmit = () => {
             {!isLoading && !isStudent ? (
               <div className="text-sm text-default-600">
                 This page is intended for students. Teachers can review via{' '}
-                <Link className="text-primary underline" to="/portal/homework/submissions">
+                <Link className="text-primary underline" to={reviewRoute}>
                   submissions
                 </Link>
                 .
@@ -315,6 +340,16 @@ const HomeworkSubmit = () => {
                               onChange={e => uploadFiles(e.target.files)}
                             />
                           </label>
+                          <label className="btn btn-sm bg-default-200 text-default-900">
+                            <LuFileUp className="inline size-4" /> Add PDF
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              className="hidden"
+                              disabled={isPdfUploading}
+                              onChange={e => uploadSubmissionPdf(e.target.files?.[0] || null)}
+                            />
+                          </label>
                           <button className="btn btn-sm bg-default-200" onClick={saveOrder} disabled={isSavingOrder || orderedIds.length < 2}>
                             <LuSave className="inline size-4" /> Save order
                           </button>
@@ -327,6 +362,7 @@ const HomeworkSubmit = () => {
                   </div>
 
                   {isUploading ? <div className="mt-2 text-sm text-default-500">Uploading...</div> : null}
+                  {isPdfUploading ? <div className="mt-2 text-sm text-default-500">PDF uploading...</div> : null}
 
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {orderedIds.map(id => {
@@ -419,6 +455,22 @@ const HomeworkSubmit = () => {
                       Add photos using the camera button above. You can upload multiple pages and reorder them.
                     </div>
                   ) : null}
+
+                  {submission?.submission_pdf ? (
+                    <div className="mt-4 rounded-xl border border-default-200 bg-white p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-sm font-medium text-default-800">Submitted PDF</div>
+                        <a className="text-xs text-primary underline" href={resolveApiUrl(submission.submission_pdf)} target="_blank" rel="noreferrer">
+                          Open in new tab
+                        </a>
+                      </div>
+                      <iframe
+                        title="Submitted PDF"
+                        src={resolveApiUrl(submission.submission_pdf)}
+                        className="w-full h-[480px] rounded-md border border-default-200"
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="lg:col-span-1">
@@ -426,7 +478,7 @@ const HomeworkSubmit = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Assignment</div>
-                        <div className="mt-1 text-base font-semibold text-default-900">Homework</div>
+                        <div className="mt-1 text-base font-semibold text-default-900">{noun}</div>
                       </div>
                       {homework?.due_date ? (
                         <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-sky-700 shadow-sm">
