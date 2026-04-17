@@ -6,6 +6,10 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    // Work around malformed CKEditor sourcemap parsing during esbuild dep optimization.
+    exclude: ['@ckeditor/ckeditor5-build-decoupled-document', 'ckeditor5'],
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src')

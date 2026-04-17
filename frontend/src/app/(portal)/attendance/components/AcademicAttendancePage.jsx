@@ -18,9 +18,19 @@ const monthStartEnd = monthDate => {
   return { start: toLocalDateStr(start), end: toLocalDateStr(end) };
 };
 
+const normalizeClassKey = (schoolClass, section) => `${String(schoolClass || '').trim()}:${String(section || '').trim().toUpperCase()}`;
+
+const getOptionClassKey = opt => {
+  if (!opt || typeof opt !== 'object') return '';
+  if (opt.school_class != null || opt.section != null) return normalizeClassKey(opt.school_class, opt.section);
+  const [schoolClass, section] = String(opt.value || '').split(':', 2);
+  return normalizeClassKey(schoolClass, section || '');
+};
+
 const AcademicAttendancePage = () => {
   const [flash, setFlash] = useState('');
   const [error, setError] = useState('');
+  const [user, setUser] = useState(() => authStorage.getUser());
 
   const [classOptions, setClassOptions] = useState([]);
   const [selectedClassKey, setSelectedClassKey] = useState('');
@@ -45,6 +55,12 @@ const AcademicAttendancePage = () => {
   }, [selectedClassKey]);
 
   useEffect(() => {
+    const onUserUpdated = () => setUser(authStorage.getUser());
+    window.addEventListener('kms_user_updated', onUserUpdated);
+    return () => window.removeEventListener('kms_user_updated', onUserUpdated);
+  }, []);
+
+  useEffect(() => {
     if (!flash) return;
     const t = setTimeout(() => setFlash(''), 6000);
     return () => clearTimeout(t);
@@ -55,21 +71,75 @@ const AcademicAttendancePage = () => {
     if (!canUseApi) return;
 
     let mounted = true;
-    setError('');
-    apiJson('/academic-classes/options/')
-      .then(data => {
-        if (!mounted) return;
-        setClassOptions(Array.isArray(data) ? data : []);
-      })
-      .catch(e => {
-        if (!mounted) return;
-        setError(e instanceof Error ? e.message : 'Failed to load classes.');
+    const fetchPaginatedRows = async path => {
+      let nextPage = 1;
+      let rows = [];
+      while (nextPage) {
+        const data = await apiJson(`${path}?page=${nextPage}`);
+        const part = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        rows = rows.concat(part);
+        if (Array.isArray(data) || !data?.next) break;
+        nextPage += 1;
+      }
+      return rows;
+    };
+
+    const loadOptions = async () => {
+      setError('');
+      const data = await apiJson('/academic-classes/options/');
+      let nextOptions = Array.isArray(data) ? data : [];
+
+      const subjectTeachers = await fetchPaginatedRows('/subject-teachers/');
+      const userId = Number(user?.id);
+      const userEmail = String(user?.email || '').trim().toLowerCase();
+      const userPhone = String(user?.phone || '').trim();
+
+      const teacherIds = new Set(
+        subjectTeachers
+          .filter(row => {
+            if (!row || typeof row !== 'object') return false;
+            const sameUser = Number(row.user) > 0 && Number(row.user) === userId;
+            const sameEmail = userEmail && String(row.email || '').trim().toLowerCase() === userEmail;
+            const samePhone = userPhone && String(row.phone || '').trim() === userPhone;
+            return sameUser || sameEmail || samePhone;
+          })
+          .map(row => Number(row.id))
+          .filter(id => Number.isFinite(id) && id > 0)
+      );
+
+      let hasClassTeacherAssignment = false;
+      if (teacherIds.size) {
+        const classTeachers = await fetchPaginatedRows('/class-teachers/');
+        const allowedClassKeys = new Set(
+          classTeachers
+            .filter(row => teacherIds.has(Number(row?.teacher)))
+            .map(row => normalizeClassKey(row?.school_class, row?.section))
+            .filter(Boolean)
+        );
+        if (allowedClassKeys.size) {
+          hasClassTeacherAssignment = true;
+          nextOptions = nextOptions.filter(opt => allowedClassKeys.has(getOptionClassKey(opt)));
+        }
+      }
+
+      if (!mounted) return;
+      setClassOptions(nextOptions);
+      setSelectedClassKey(prev => {
+        if (nextOptions.some(opt => String(opt?.value || '') === String(prev || ''))) return prev;
+        if (hasClassTeacherAssignment && nextOptions.length) return String(nextOptions[0]?.value || '');
+        return '';
       });
+    };
+
+    loadOptions().catch(e => {
+      if (!mounted) return;
+      setError(e instanceof Error ? e.message : 'Failed to load classes.');
+    });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user?.email, user?.id, user?.phone]);
 
   const loadSheet = async () => {
     const canUseApi = Boolean(authStorage.getAccess());

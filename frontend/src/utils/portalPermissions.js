@@ -79,10 +79,15 @@ export const canPortal = (pathnameOrHref, action = 'view') => {
   const key = resolvePermissionPath(normalized) || normalized;
   const row = perms[key];
   if (!row) return false;
+  const pick = (legacyKey, canKey) => {
+    if (row[legacyKey] != null) return Boolean(row[legacyKey]);
+    if (row[canKey] != null) return Boolean(row[canKey]);
+    return false;
+  };
 
   const a = String(action || 'view').toLowerCase();
-  if (a === 'create') return Boolean(row.create);
-  if (a === 'edit') return Boolean(row.edit);
-  if (a === 'delete') return Boolean(row.delete);
-  return Boolean(row.view);
+  if (a === 'create') return pick('create', 'can_create');
+  if (a === 'edit') return pick('edit', 'can_edit');
+  if (a === 'delete') return pick('delete', 'can_delete');
+  return pick('view', 'can_view');
 };

@@ -565,8 +565,9 @@ const HomeworkSubmit = () => {
       {canAnnotate ? (
         <SubmissionAnnotationModal
           image={activeImage}
-          onSaved={msg => {
-            if (msg) setFlash(msg);
+          onSaved={payload => {
+            const message = typeof payload === 'string' ? payload : payload?.message;
+            if (message) setFlash(message);
           }}
         />
       ) : null}

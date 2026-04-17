@@ -91,6 +91,7 @@ const SubmissionAnnotationModal = ({ image, onSaved }) => {
   const [width, setWidth] = useState(3);
   const [strokes, setStrokes] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
+  const pageLabel = image?.page_number ? `Page #${image.page_number}` : imageId ? `Image #${imageId}` : '';
 
   const fitCanvas = () => {
     const canvas = canvasRef.current;
@@ -131,7 +132,9 @@ const SubmissionAnnotationModal = ({ image, onSaved }) => {
       try {
         const data = await apiJson(`/annotations/?submission_image=${encodeURIComponent(imageId)}`);
         const rows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
-        const mine = rows.find(a => String(a.created_by) === String(user.id));
+        const mine = rows.find(
+          a => String(a.created_by) === String(user.id) && String(a.submission_image) === String(imageId)
+        );
         if (!isMounted) return;
         if (mine?.id) {
           setAnnotationId(mine.id);
@@ -201,7 +204,11 @@ const SubmissionAnnotationModal = ({ image, onSaved }) => {
         const created = await apiJson('/annotations/', { method: 'POST', body: { submission_image: imageId, annotation_data: payload } });
         setAnnotationId(created?.id || null);
       }
-      await onSaved?.('Annotation saved.');
+      await onSaved?.({
+        message: pageLabel ? `Annotation saved for ${pageLabel}.` : 'Annotation saved.',
+        imageId,
+        annotation_data: payload,
+      });
       closeAnnotateOverlay();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save annotation.');
@@ -224,6 +231,7 @@ const SubmissionAnnotationModal = ({ image, onSaved }) => {
             <h3 id="submission-annotate-modal-label" className="font-bold text-default-800 text-base">
               Annotate Page
             </h3>
+            {pageLabel ? <div className="mt-1 text-xs text-default-500">{pageLabel}</div> : null}
             <div>
               <button
                 type="button"
@@ -318,4 +326,3 @@ const SubmissionAnnotationModal = ({ image, onSaved }) => {
 };
 
 export default SubmissionAnnotationModal;
-

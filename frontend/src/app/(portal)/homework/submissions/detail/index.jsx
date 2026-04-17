@@ -48,6 +48,62 @@ const formatDateTime = value => {
   return dt.toLocaleString();
 };
 
+const normalizeOverlay = overlay => {
+  const source = overlay && typeof overlay === 'object' ? overlay : {};
+  const strokes = Array.isArray(source.strokes) ? source.strokes : [];
+  return strokes
+    .map(stroke => {
+      const points = Array.isArray(stroke?.points) ? stroke.points : [];
+      const cleaned = points
+        .filter(point => Array.isArray(point) && point.length >= 2)
+        .map(point => {
+          const x = Math.max(0, Math.min(1, Number(point[0]) || 0));
+          const y = Math.max(0, Math.min(1, Number(point[1]) || 0));
+          return [x, y];
+        });
+      if (cleaned.length < 2) return null;
+      const width = Math.max(1, Math.min(14, Number(stroke?.width) || 2));
+      const color = String(stroke?.color || '#ef4444');
+      return { points: cleaned, width, color };
+    })
+    .filter(Boolean);
+};
+
+const buildOverlayFromAnnotationData = data => {
+  const source = data && typeof data === 'object' ? data : {};
+  return {
+    strokes: Array.isArray(source.strokes) ? source.strokes : [],
+    notes: source.text ? [{ text: String(source.text) }] : [],
+  };
+};
+
+const AnnotationOverlay = ({ overlay }) => {
+  const strokes = normalizeOverlay(overlay);
+  if (!strokes.length) return null;
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {strokes.map((stroke, index) => (
+        <polyline
+          // eslint-disable-next-line react/no-array-index-key
+          key={`${index}-${stroke.points.length}`}
+          points={stroke.points.map(([x, y]) => `${x * 100},${y * 100}`).join(' ')}
+          fill="none"
+          stroke={stroke.color}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={(stroke.width / 4).toFixed(2)}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
+  );
+};
+
 const HomeworkSubmissionDetail = () => {
   const canUseApi = Boolean(authStorage.getAccess());
   const token = authStorage.getAccess();
@@ -89,6 +145,7 @@ const HomeworkSubmissionDetail = () => {
   const canUploadPages = isStudent && submission?.status !== 'GRADED';
   const canReorder = canUploadPages || isTeacher;
   const canGrade = useMemo(() => isTeacher && submission?.id, [isTeacher, submission?.id]);
+  const canDownloadAnswerSheetPdf = isTeacher || submission?.status === 'GRADED';
 
   const load = async ({ silent = false } = {}) => {
     if (!canUseApi || !submissionId) return;
@@ -146,6 +203,36 @@ const HomeworkSubmissionDetail = () => {
     setSelectedImage(next || null);
     if (next?.id && String(next.id) !== String(selectedImageId)) setSelectedImageId(next.id);
   }, [images, selectedImageId]);
+
+  useEffect(() => {
+    if (!fullscreenImage?.id) return;
+    const refreshed = images.find(img => String(img.id) === String(fullscreenImage.id));
+    if (refreshed) setFullscreenImage(refreshed);
+  }, [images, fullscreenImage?.id]);
+
+  const applyOptimisticAnnotation = payload => {
+    const imageId = payload?.imageId;
+    if (!imageId) return;
+    const nextOverlay = buildOverlayFromAnnotationData(payload?.annotation_data);
+    setImages(prev =>
+      prev.map(img =>
+        String(img.id) === String(imageId)
+          ? {
+              ...img,
+              annotation_overlay: nextOverlay,
+            }
+          : img
+      )
+    );
+    setFullscreenImage(prev =>
+      prev && String(prev.id) === String(imageId)
+        ? {
+            ...prev,
+            annotation_overlay: nextOverlay,
+          }
+        : prev
+    );
+  };
 
   const downloadPdf = async () => {
     if (!token || !submissionId) return;
@@ -352,9 +439,11 @@ const HomeworkSubmissionDetail = () => {
               <button className="btn btn-sm bg-default-200" onClick={e => { e.preventDefault(); load(); }} disabled={isLoading || isUploading}>
                 <LuRefreshCw className="inline size-4" /> Refresh
               </button>
-              <button className="btn btn-sm bg-primary text-white" onClick={downloadPdf} disabled={!images.length}>
-                <LuDownload className="inline size-4" /> Download PDF
-              </button>
+              {canDownloadAnswerSheetPdf ? (
+                <button className="btn btn-sm bg-primary text-white" onClick={downloadPdf} disabled={!images.length}>
+                  <LuDownload className="inline size-4" /> Download Answer Sheet PDF
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -382,7 +471,7 @@ const HomeworkSubmissionDetail = () => {
                       </span>
                       {submission.submitted_at ? (
                         <span className="text-default-600">
-                          {' '}· Submitted: {String(submission.submitted_at).slice(0, 19).replace('T', ' ')}
+                          {' '}| Submitted: {String(submission.submitted_at).slice(0, 19).replace('T', ' ')}
                         </span>
                       ) : null}
                     </div>
@@ -426,13 +515,14 @@ const HomeworkSubmissionDetail = () => {
                         <div
                           key={img.id}
                           className="rounded-lg border border-default-200 bg-white overflow-hidden"
-                          draggable={canUploadPages}
+                          draggable={canReorder}
                           onDragStart={e => onDragStart(e, img.id)}
                           onDragOver={e => e.preventDefault()}
                           onDrop={e => onDrop(e, img.id)}
                         >
                           <div className="relative">
                             <img src={resolveApiUrl(img.image)} alt={`Page ${displayPageNumber}`} className="w-full aspect-[3/4] object-cover" />
+                            <AnnotationOverlay overlay={img.annotation_overlay} />
                             <div className="absolute top-1 left-1 rounded bg-black/70 text-white text-xs px-2 py-0.5">
                               #{displayPageNumber}
                             </div>
@@ -451,7 +541,7 @@ const HomeworkSubmissionDetail = () => {
                           </div>
                           <div className="p-2 space-y-2">
                             <div className="flex flex-wrap items-center gap-2">
-                              {canUploadPages ? (
+                              {canReorder ? (
                                 <>
                                   <label className="text-[11px] text-default-500">Page</label>
                                   <input
@@ -461,6 +551,13 @@ const HomeworkSubmissionDetail = () => {
                                     value={pageInputs[img.id] ?? ''}
                                     disabled={busyImageId === img.id}
                                     onChange={e => setPageInputs(prev => ({ ...prev, [img.id]: e.target.value }))}
+                                    onBlur={() => updateImagePageNumber(img)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        updateImagePageNumber(img);
+                                      }
+                                    }}
                                   />
                                 </>
                               ) : (
@@ -506,7 +603,7 @@ const HomeworkSubmissionDetail = () => {
                                 </button>
                               ) : null}
                             </div>
-                            {canUploadPages ? <div className="text-[11px] text-default-500 break-words">Drag to reorder and page number will update automatically.</div> : null}
+                            {canReorder ? <div className="text-[11px] text-default-500 break-words">Drag to reorder and page number will update automatically.</div> : null}
                           </div>
                         </div>
                       );
@@ -654,9 +751,11 @@ const HomeworkSubmissionDetail = () => {
         {canAnnotate ? (
           <SubmissionAnnotationModal
             image={activeImage}
-            onSaved={msg => {
-              if (msg) setFlash(msg);
-              load({ silent: true });
+            onSaved={async payload => {
+              applyOptimisticAnnotation(payload);
+              const message = typeof payload === 'string' ? payload : payload?.message;
+              if (message) setFlash(message);
+              await load({ silent: true });
             }}
           />
         ) : null}
@@ -671,11 +770,14 @@ const HomeworkSubmissionDetail = () => {
             >
               <LuShrink className="size-5" />
             </button>
-            <img
-              src={resolveApiUrl(fullscreenImage.image)}
-              alt={`Page ${fullscreenImage.page_number || ''}`}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-            />
+            <div className="relative max-w-full max-h-full">
+              <img
+                src={resolveApiUrl(fullscreenImage.image)}
+                alt={`Page ${fullscreenImage.page_number || ''}`}
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              />
+              <AnnotationOverlay overlay={fullscreenImage.annotation_overlay} />
+            </div>
           </div>
         ) : null}
       </main>

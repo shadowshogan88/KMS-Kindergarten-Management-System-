@@ -42,6 +42,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
   const [searchParams] = useSearchParams();
   const homeworkId = (searchParams.get('id') || '').trim();
   const pageMode = ((searchParams.get('mode') || '').trim().toLowerCase() || 'create');
+  const createSource = (searchParams.get('src') || '').trim().toLowerCase();
   const isViewMode = Boolean(homeworkId) && pageMode === 'view';
   const isEditMode = Boolean(homeworkId) && pageMode === 'edit';
   const isCreateMode = !homeworkId;
@@ -67,6 +68,8 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
   const createRoute = homeworkType === 'ASSIGNMENT' ? '/portal/assignment/create' : '/portal/homework/create';
   const isPrivilegedEditor = role === 'ADMIN' || role === 'TEACHER';
   const keepSelectionLocked = !(homeworkType === 'ASSIGNMENT' && isEditMode && isPrivilegedEditor);
+  const lockSelectionFromCalendar = isCreateMode && createSource === 'live-calendar';
+  const lockSelectionByExistingRule = !isCreateMode && keepSelectionLocked;
   const pageHeading = isViewMode ? `View ${noun}` : isEditMode ? `Edit ${noun}` : pageTitle;
 
   useEffect(() => {
@@ -500,6 +503,11 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
               </div>
             ) : (
             <form id="homework-create-form" onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {lockSelectionFromCalendar ? (
+                <div className="md:col-span-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                  Opened from live calendar: Classroom, Subject and Class Date are locked for this create flow.
+                </div>
+              ) : null}
               <div className="md:col-span-2">
                 <label className="text-sm text-default-700">Title</label>
                 <input
@@ -528,7 +536,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-select w-full"
                   value={form.classroom}
                   onChange={e => setForm(current => ({ ...current, classroom: e.target.value, subject: '' }))}
-                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.classroom || '').trim()))}
+                  disabled={isLocked || lockSelectionFromCalendar || (lockSelectionByExistingRule && Boolean(String(form.classroom || '').trim()))}
                   required
                 >
                   <option value="">Select class</option>
@@ -544,7 +552,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-select w-full"
                   value={form.subject}
                   onChange={e => setForm(current => ({ ...current, subject: e.target.value }))}
-                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.subject || '').trim()))}
+                  disabled={isLocked || lockSelectionFromCalendar || (lockSelectionByExistingRule && Boolean(String(form.subject || '').trim()))}
                   required
                 >
                   <option value="">Select subject</option>
@@ -566,7 +574,7 @@ const HomeworkCreate = ({ homeworkType = 'HOMEWORK', pageTitle = 'Create Homewor
                   className="form-input w-full"
                   value={form.class_date}
                   onChange={e => setForm(current => ({ ...current, class_date: e.target.value }))}
-                  disabled={isLocked || (keepSelectionLocked && Boolean(String(form.class_date || '').trim()))}
+                  disabled={isLocked || lockSelectionFromCalendar || (lockSelectionByExistingRule && Boolean(String(form.class_date || '').trim()))}
                 />
                 <div className="mt-1 text-xs text-default-500">Optional: keeps homework grouped under the selected class date even if due date is later.</div>
               </div>

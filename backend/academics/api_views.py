@@ -54,6 +54,7 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="options")
     def options(self, request, *args, **kwargs):
         user = getattr(request, "user", None)
+        student = None
         classes = SchoolClass.objects.all().order_by("name")
 
         if getattr(user, "role", None) == "STUDENT":
@@ -61,24 +62,61 @@ class SchoolClassViewSet(viewsets.ModelViewSet):
             if not student or not getattr(student, "school_class_id", None):
                 return Response([])
             classes = classes.filter(id=student.school_class_id)
+
+        # Restrict class options for users who are assigned as class teachers.
+        user_id = getattr(user, "id", None)
+        user_email = str(getattr(user, "email", "") or "").strip().lower()
+        user_phone = str(getattr(user, "phone", "") or "").strip()
+        teacher_ids = set()
+        teacher_filter = Q()
+        if user_id:
+            teacher_filter |= Q(user_id=user_id)
+        if user_email:
+            teacher_filter |= Q(email__iexact=user_email)
+        if user_phone:
+            teacher_filter |= Q(phone=user_phone)
+        if teacher_filter:
+            teacher_ids = {
+                int(teacher_id)
+                for teacher_id in SubjectTeacher.objects.filter(teacher_filter).values_list("id", flat=True)
+                if teacher_id
+            }
+
+        assignment_rows = (
+            ClassTeacher.objects.filter(teacher_id__in=teacher_ids).values_list("school_class_id", "section").distinct()
+            if teacher_ids
+            else []
+        )
+        assignment_keys = {(int(class_id), str(section or "").strip().upper()) for class_id, section in assignment_rows}
+        assignment_class_ids = {class_id for class_id, _section in assignment_keys}
+        if getattr(user, "role", None) == "TEACHER" and not assignment_keys:
+            return Response([])
+        if assignment_class_ids:
+            classes = classes.filter(id__in=assignment_class_ids)
+
         options = []
         for school_class in classes:
             sections = school_class.sections or []
             if sections:
                 for section in sections:
+                    normalized_section = str(section).strip().upper()
                     if getattr(user, "role", None) == "STUDENT":
                         student_section = (getattr(student, "section", "") or "").strip().upper()
-                        if student_section and student_section != str(section).strip().upper():
+                        if student_section and student_section != normalized_section:
                             continue
+                    if assignment_keys and (int(school_class.id), normalized_section) not in assignment_keys:
+                        continue
                     options.append(
                         {
-                            "value": f"{school_class.id}:{section}",
-                            "label": f"{school_class.name} ({section})",
+                            "value": f"{school_class.id}:{normalized_section}",
+                            "label": f"{school_class.name} ({normalized_section})",
                             "school_class": school_class.id,
-                            "section": section,
+                            "section": normalized_section,
                         }
                     )
             else:
+                if assignment_keys and (int(school_class.id), "") not in assignment_keys:
+                    continue
                 options.append(
                     {
                         "value": f"{school_class.id}:",
